@@ -27,9 +27,9 @@ struct copy_value {
  */
 template<concepts::HostView TSrc, concepts::HostView TDst>
 requires concepts::TransformViews<TSrc, TDst>
-cpu_execution copy(TSrc aSource, TDst aDestination, cpu_execution = {})
+cpu_execution copy(TSrc aSource, TDst aDestination, cpu_policy aPolicy = {})
 {
-	return transform(aSource, aDestination, detail::copy_value{});
+	return transform(aSource, aDestination, detail::copy_value{}, aPolicy);
 }
 
 #if defined(__CUDACC__)
@@ -41,9 +41,9 @@ cpu_execution copy(TSrc aSource, TDst aDestination, cpu_execution = {})
  */
 template<concepts::DeviceView TSrc, concepts::DeviceView TDst>
 requires concepts::TransformViews<TSrc, TDst>
-cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution = {})
+cuda_execution copy(TSrc aSource, TDst aDestination, cuda_policy aPolicy = {})
 {
-	return transform(aSource, aDestination, detail::copy_value{}, aExecution);
+	return transform(aSource, aDestination, detail::copy_value{}, aPolicy);
 }
 
 /**
@@ -54,13 +54,13 @@ cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution =
  */
 template<class TSrc, class TDst>
 requires concepts::TransferViews<TSrc, TDst>
-cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution = {})
+cuda_execution copy(TSrc aSource, TDst aDestination, cuda_policy aPolicy = {})
 {
 	const auto size = detail::matching_dimensions(aSource, aDestination);
 	constexpr int dimension = TSrc::dimension;
 	const auto count = math::detail::element_count<dimension>(size);
 	if (count == 0) {
-		return aExecution;
+		return {aPolicy.stream};
 	}
 	constexpr auto element_size = sizeof(typename TSrc::value_type);
 	const auto width = static_cast<std::size_t>(math::detail::axis(size, 0));
@@ -84,8 +84,8 @@ cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution =
 	}
 	if (packed) {
 		detail::check_cuda(cudaMemcpyAsync(aDestination.pointer(), aSource.pointer(),
-			count * element_size, direction, aExecution.stream), "CUDA image transfer");
-		return aExecution;
+			count * element_size, direction, aPolicy.stream), "CUDA image transfer");
+		return {aPolicy.stream};
 	}
 	if constexpr (dimension > 1) {
 		if (src_stride[1] < 0 || dst_stride[1] < 0 ||
@@ -101,10 +101,10 @@ cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution =
 			detail::check_cuda(cudaMemcpy2DAsync(
 				destination + math::offset_in_strided_memory(dst_stride, position), dst_stride[1],
 				source + math::offset_in_strided_memory(src_stride, position), src_stride[1],
-				row_bytes, size[1], direction, aExecution.stream), "CUDA image transfer");
+				row_bytes, size[1], direction, aPolicy.stream), "CUDA image transfer");
 		}
 	}
-	return aExecution;
+	return {aPolicy.stream};
 }
 #endif
 

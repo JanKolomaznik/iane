@@ -1,0 +1,7 @@
+foreach(benchmark IN ITEMS execution_policy convolution)
+	if(NOT IANE_ENABLE_CUDA)
+		set_source_files_properties(${benchmark}.cu PROPERTIES LANGUAGE CXX)
+	endif()
+	add_executable(${benchmark}_benchmark ${benchmark}.cu)
+	target_link_libraries(${benchmark}_benchmark PRIVATE iane)
+endforeach()

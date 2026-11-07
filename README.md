@@ -16,3 +16,4 @@ graphs for classes, header dependencies and directories.
 ## Guides
 
 - [Procedural views](docs/procedural_views.md)
+- [CUDA texture images](docs/cuda_texture_images.md)

@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.20)
 # ------------------------------------------------------------
 project(IANE LANGUAGES CXX)
 
-option(IANE_ENABLE_CUDA "Enable CUDA support in examples" ON)
+option(IANE_ENABLE_CUDA "Enable CUDA support" ON)
 if(IANE_ENABLE_CUDA)
 	enable_language(CUDA)
 endif()
@@ -24,7 +24,9 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 # IANE header-only interface library
 # ------------------------------------------------------------
 
+find_package(Threads REQUIRED)
 add_library(iane INTERFACE)
+target_link_libraries(iane INTERFACE Threads::Threads)
 
 target_include_directories(iane INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -43,6 +45,7 @@ set_target_properties(iane PROPERTIES
 # ------------------------------------------------------------
 option(IANE_BUILD_TESTS "Build IANE unit tests" ON)
 option(IANE_BUILD_EXAMPLES "Build example programs" ON)
+option(IANE_BUILD_BENCHMARKS "Build benchmark programs" OFF)
 
 # ------------------------------------------------------------
 # Unit tests
@@ -60,4 +63,8 @@ endif()
 # ------------------------------------------------------------
 if(IANE_BUILD_EXAMPLES)
 	add_subdirectory(examples)
+endif()
+
+if(IANE_BUILD_BENCHMARKS)
+	add_subdirectory(benchmarks)
 endif()

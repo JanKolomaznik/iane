@@ -71,19 +71,19 @@ auto matching_dimensions(TSrc aSource, TDst aDestination)
  */
 template<class TSrc, class TDst, class TFunction>
 requires concepts::TransformViews<TSrc, TDst>
-auto transform(TSrc aSource, TDst aDestination, TFunction aFunction, view_execution<TDst> aExecution = {})
+auto transform(TSrc aSource, TDst aDestination, TFunction aFunction, view_policy<TDst> aPolicy = {})
 {
 	detail::matching_dimensions(aSource, aDestination);
-	return for_each_position(aDestination, detail::value_transform<TSrc, TFunction>{aSource, aFunction}, aExecution);
+	return for_each_position(aDestination, detail::value_transform<TSrc, TFunction>{aSource, aFunction}, aPolicy);
 }
 
 /// Assign function(source_pixel, position) at each coordinate. See transform for preconditions.
 template<class TSrc, class TDst, class TFunction>
 requires concepts::TransformViews<TSrc, TDst>
-auto transform_position(TSrc aSource, TDst aDestination, TFunction aFunction, view_execution<TDst> aExecution = {})
+auto transform_position(TSrc aSource, TDst aDestination, TFunction aFunction, view_policy<TDst> aPolicy = {})
 {
 	detail::matching_dimensions(aSource, aDestination);
-	return for_each_position(aDestination, detail::position_transform<TSrc, TFunction>{aSource, aFunction}, aExecution);
+	return for_each_position(aDestination, detail::position_transform<TSrc, TFunction>{aSource, aFunction}, aPolicy);
 }
 
 /**
@@ -94,11 +94,11 @@ auto transform_position(TSrc aSource, TDst aDestination, TFunction aFunction, vi
 template<class TSrc, class TDst, class TFunction>
 requires concepts::TransformViews<TSrc, TDst>
 auto transform_locator(TSrc aSource, TDst aDestination, TFunction aFunction,
-	border_mode aBorder = border_mode::clamp, view_execution<TDst> aExecution = {})
+	border_mode aBorder = border_mode::clamp, view_policy<TDst> aPolicy = {})
 {
 	detail::matching_dimensions(aSource, aDestination);
 	return for_each_position(aDestination,
-		detail::locator_transform<TSrc, TFunction>{aSource, aFunction, aBorder}, aExecution);
+		detail::locator_transform<TSrc, TFunction>{aSource, aFunction, aBorder}, aPolicy);
 }
 
 } // namespace iane

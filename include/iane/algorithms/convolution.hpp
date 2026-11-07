@@ -85,7 +85,7 @@ struct convolution_filter {
  * is multiplied by the coefficient at offset d.
  * @param aDestination Output of the same extent as source, disjoint from both inputs.
  * @param aOptions Sampling rule outside the source view.
- * @param aExecution Execution context for the views' common backend.
+ * @param aPolicy Scheduling policy for the views' common backend.
  * @return Completion handle. Keep all view storage valid until completion.
  * @throws std::invalid_argument For invalid kernel or mismatched image dimensions.
  *
@@ -102,7 +102,7 @@ requires (concepts::TransformViews<TSrc, TDst> &&
 	concepts::ConvolutionElements<typename TSrc::value_type, typename TKernel::value_type,
 		typename TDst::value_type>)
 auto convolve(TSrc aSource, TKernel aKernel, TDst aDestination,
-	convolution_options aOptions = {}, view_execution<TDst> aExecution = {})
+	convolution_options aOptions = {}, view_policy<TDst> aPolicy = {})
 {
 	const auto size = aKernel.dimensions();
 	for (int i = 0; i < TKernel::dimension; ++i) {
@@ -113,7 +113,7 @@ auto convolve(TSrc aSource, TKernel aKernel, TDst aDestination,
 	}
 	return transform_locator(aSource, aDestination,
 		detail::convolution_filter<TKernel, typename TDst::value_type>{aKernel, size},
-		aOptions.border, aExecution);
+		aOptions.border, aPolicy);
 }
 
 } // namespace iane

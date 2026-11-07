@@ -2,6 +2,7 @@
 
 #include <iane/image/image.hpp>
 #include <iane/resource/packed_layout.hpp>
+#include <iane/resource/cuda/texture_image.hpp>
 #include <iane/execution/context.hpp>
 #include <iane/view/const_device_image_view.hpp>
 #include <iane/view/device_image_view.hpp>
