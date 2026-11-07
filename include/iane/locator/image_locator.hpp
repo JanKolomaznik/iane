@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iane/concepts/view.hpp>
+#include <iane/concepts/locator.hpp>
 #include <iane/config.hpp>
 #include <iane/math/index.hpp>
 
@@ -19,8 +20,7 @@ enum class border_mode { clamp, zero };
  * The locator borrows the view's storage and treats the view's extent as
  * the boundary, including when the view represents a crop.
  */
-template<concepts::AnyView TView>
-requires (TView::dimension > 0)
+template<concepts::ReadableView TView>
 class image_locator {
 public:
 	using value_type = typename TView::value_type;
@@ -61,17 +61,4 @@ private:
 	border_mode mBorder;
 };
 
-namespace concepts {
-
-/// A read-only relative neighborhood accessor with a center coordinate.
-template<class TElement>
-concept Locator = requires(const TElement& aLocator, typename TElement::offset_t aOffset) {
-	typename TElement::value_type;
-	typename TElement::coord_t;
-	{ TElement::dimension } -> std::convertible_to<int>;
-	{ aLocator.position() } -> std::same_as<typename TElement::coord_t>;
-	{ aLocator[aOffset] } -> std::convertible_to<typename TElement::value_type>;
-};
-
-} // namespace concepts
 } // namespace iane

@@ -69,7 +69,7 @@ struct locator_visitor {
  * @return An already-completed execution handle.
  */
 template<concepts::HostView TView, class TFunction>
-requires (TView::dimension > 0)
+requires concepts::ViewDomain<TView>
 cpu_execution visit_coordinates(TView aView, TFunction aFunction, cpu_execution = {})
 {
 	const auto size = aView.dimensions();
@@ -90,7 +90,7 @@ cpu_execution visit_coordinates(TView aView, TFunction aFunction, cpu_execution 
  * the operation. Invocations may run concurrently in any order.
  */
 template<concepts::DeviceView TView, class TFunction>
-requires (TView::dimension > 0)
+requires concepts::ViewDomain<TView>
 cuda_execution visit_coordinates(TView aView, TFunction aFunction, cuda_execution aExecution = {})
 {
 	const auto size = aView.dimensions();
@@ -126,21 +126,21 @@ using view_execution =
  * @pre For CUDA, the callable must support device execution and storage must
  * outlive the operation. Invocations may run concurrently in any order.
  */
-template<concepts::AnyView TView, class TFunction>
+template<concepts::ViewDomain TView, class TFunction>
 auto for_each_position(TView aView, TFunction aFunction, view_execution<TView> aExecution = {})
 {
 	return detail::visit_coordinates(aView, detail::pixel_visitor<TView, TFunction>{aView, aFunction}, aExecution);
 }
 
 /// Visit each pixel with its value or reference.
-template<concepts::AnyView TView, class TFunction>
+template<concepts::ViewDomain TView, class TFunction>
 auto for_each(TView aView, TFunction aFunction, view_execution<TView> aExecution = {})
 {
 	return for_each_position(aView, detail::value_visitor<TFunction>{aFunction}, aExecution);
 }
 
 /// Visit each position with a read-only neighborhood locator.
-template<concepts::AnyView TView, class TFunction>
+template<concepts::ReadableView TView, class TFunction>
 auto for_each_locator(TView aView, TFunction aFunction, border_mode aBorder = border_mode::clamp,
 	view_execution<TView> aExecution = {})
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iane/algorithms/transform.hpp>
+#include <iane/concepts/element.hpp>
 
 #include <cmath>
 #include <concepts>
@@ -15,41 +16,6 @@ namespace iane {
 struct convolution_options {
 	border_mode border = border_mode::clamp;
 };
-
-namespace detail {
-
-template<class TSample, class TCoefficient>
-using convolution_product = std::remove_cvref_t<decltype(
-	std::declval<TSample>() * std::declval<TCoefficient>())>;
-
-template<class TSample, class TCoefficient>
-inline constexpr bool arithmetic_convolution =
-	std::is_arithmetic_v<TSample> && std::is_arithmetic_v<TCoefficient>;
-
-template<class TSample, class TCoefficient>
-using convolution_sum = std::conditional_t<arithmetic_convolution<TSample, TCoefficient>,
-	double, convolution_product<TSample, TCoefficient>>;
-
-} // namespace detail
-
-namespace concepts {
-
-/// Samples and coefficients form a product that can be accumulated and converted to the output.
-template<class TSample, class TCoefficient, class TResult>
-concept ConvolutionElements = std::default_initializable<TSample> &&
-	requires(TSample aSample, TCoefficient aCoefficient) { aSample * aCoefficient; } &&
-	std::default_initializable<detail::convolution_sum<TSample, TCoefficient>> &&
-	requires(TSample aSample, TCoefficient aCoefficient,
-		detail::convolution_sum<TSample, TCoefficient> aSum) {
-		static_cast<TResult>(aSum);
-	} &&
-	(detail::arithmetic_convolution<TSample, TCoefficient> ||
-	 requires(TSample aSample, TCoefficient aCoefficient,
-		 detail::convolution_sum<TSample, TCoefficient> aSum) {
-		 aSum = aSum + aSample * aCoefficient;
-	 });
-
-} // namespace concepts
 
 namespace detail {
 
@@ -129,8 +95,10 @@ struct convolution_filter {
  * to nearest, ties upward. NaN maps to zero for integral outputs.
  */
 template<class TSrc, class TKernel, class TDst>
-requires (detail::compatible_transform_views<TSrc, TDst> &&
-	detail::compatible_transform_views<TKernel, TDst> &&
+requires (concepts::TransformViews<TSrc, TDst> &&
+	concepts::ReadableView<TKernel> &&
+	concepts::MatchingViewRank<TKernel, TSrc> &&
+	concepts::SameViewBackend<TKernel, TSrc> &&
 	concepts::ConvolutionElements<typename TSrc::value_type, typename TKernel::value_type,
 		typename TDst::value_type>)
 auto convolve(TSrc aSource, TKernel aKernel, TDst aDestination,

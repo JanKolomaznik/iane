@@ -16,11 +16,6 @@ struct copy_value {
 	IANE_DECL_HYBRID TElement&& operator()(TElement&& aValue) const { return static_cast<TElement&&>(aValue); }
 };
 
-#if defined(__CUDACC__)
-template<class TView>
-concept cuda_transfer_view = requires(TView aView) { aView.pointer(); aView.strides(); };
-#endif
-
 } // namespace detail
 
 /**
@@ -31,7 +26,7 @@ concept cuda_transfer_view = requires(TView aView) { aView.pointer(); aView.stri
  * overlapping views are unsupported.
  */
 template<concepts::HostView TSrc, concepts::HostView TDst>
-requires (TSrc::dimension > 0 && TSrc::dimension == TDst::dimension)
+requires concepts::TransformViews<TSrc, TDst>
 cpu_execution copy(TSrc aSource, TDst aDestination, cpu_execution = {})
 {
 	return transform(aSource, aDestination, detail::copy_value{});
@@ -45,7 +40,7 @@ cpu_execution copy(TSrc aSource, TDst aDestination, cpu_execution = {})
  * Shifted overlapping views are unsupported.
  */
 template<concepts::DeviceView TSrc, concepts::DeviceView TDst>
-requires (TSrc::dimension > 0 && TSrc::dimension == TDst::dimension)
+requires concepts::TransformViews<TSrc, TDst>
 cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution = {})
 {
 	return transform(aSource, aDestination, detail::copy_value{}, aExecution);
@@ -57,12 +52,8 @@ cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution =
  * @pre Rows must contain contiguous elements. Both views must remain valid
  * until completion. CUDA may synchronize pageable host transfers internally.
  */
-template<detail::cuda_transfer_view TSrc, detail::cuda_transfer_view TDst>
-requires (TSrc::dimension > 0 && TSrc::dimension == TDst::dimension &&
-	((concepts::HostView<TSrc> && concepts::DeviceView<TDst>) ||
-	 (concepts::DeviceView<TSrc> && concepts::HostView<TDst>)) &&
-	std::same_as<typename TSrc::value_type, typename TDst::value_type> &&
-	std::is_trivially_copyable_v<typename TSrc::value_type>)
+template<class TSrc, class TDst>
+requires concepts::TransferViews<TSrc, TDst>
 cuda_execution copy(TSrc aSource, TDst aDestination, cuda_execution aExecution = {})
 {
 	const auto size = detail::matching_dimensions(aSource, aDestination);

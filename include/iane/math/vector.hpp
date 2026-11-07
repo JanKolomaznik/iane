@@ -13,19 +13,12 @@
 #include <type_traits>
 #include <concepts>
 
+#include <iane/concepts/core.hpp>
 #include <iane/config.hpp> // for IANE_DECL_HOST / _DEVICE / _HYBRID
 
 namespace iane::math {
 
-/**
- * @brief Concept for vector-like types usable with IANE utilities.
- */
-template<typename TElement>
-concept MathVector = requires(TElement aV) {
-	typename TElement::value_type;
-	{ TElement::dim } -> std::convertible_to<int>;
-	{ aV[0] };
-};
+using iane::concepts::MathVector;
 
 /**
  * @brief N-dimensional vector with element type T.

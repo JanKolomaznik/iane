@@ -49,12 +49,6 @@ struct locator_transform {
 };
 
 template<class TSrc, class TDst>
-concept compatible_transform_views =
-	TSrc::dimension > 0 && TSrc::dimension == TDst::dimension &&
-	((concepts::HostView<TSrc> && concepts::HostView<TDst>) ||
-	 (concepts::DeviceView<TSrc> && concepts::DeviceView<TDst>));
-
-template<class TSrc, class TDst>
 auto matching_dimensions(TSrc aSource, TDst aDestination)
 {
 	const auto size = aDestination.dimensions();
@@ -76,7 +70,7 @@ auto matching_dimensions(TSrc aSource, TDst aDestination)
  * valid through completion and the callable must support device execution.
  */
 template<class TSrc, class TDst, class TFunction>
-requires detail::compatible_transform_views<TSrc, TDst>
+requires concepts::TransformViews<TSrc, TDst>
 auto transform(TSrc aSource, TDst aDestination, TFunction aFunction, view_execution<TDst> aExecution = {})
 {
 	detail::matching_dimensions(aSource, aDestination);
@@ -85,7 +79,7 @@ auto transform(TSrc aSource, TDst aDestination, TFunction aFunction, view_execut
 
 /// Assign function(source_pixel, position) at each coordinate. See transform for preconditions.
 template<class TSrc, class TDst, class TFunction>
-requires detail::compatible_transform_views<TSrc, TDst>
+requires concepts::TransformViews<TSrc, TDst>
 auto transform_position(TSrc aSource, TDst aDestination, TFunction aFunction, view_execution<TDst> aExecution = {})
 {
 	detail::matching_dimensions(aSource, aDestination);
@@ -98,7 +92,7 @@ auto transform_position(TSrc aSource, TDst aDestination, TFunction aFunction, vi
  * valid through completion and the callable must support device execution.
  */
 template<class TSrc, class TDst, class TFunction>
-requires detail::compatible_transform_views<TSrc, TDst>
+requires concepts::TransformViews<TSrc, TDst>
 auto transform_locator(TSrc aSource, TDst aDestination, TFunction aFunction,
 	border_mode aBorder = border_mode::clamp, view_execution<TDst> aExecution = {})
 {

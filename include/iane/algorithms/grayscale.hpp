@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iane/concepts/view.hpp>
+#include <iane/concepts/element.hpp>
 #include <iane/config.hpp>
 
 #include <cmath>
@@ -23,6 +24,7 @@ template<class TView>
 struct grayscale_view {
 	using value_type = std::uint8_t;
 	using coord_t = typename TView::coord_t;
+	using extents_t = typename TView::extents_t;
 	static constexpr int dimension = TView::dimension;
 
 	TView source;
@@ -78,7 +80,8 @@ struct device_grayscale_view : grayscale_view<TView> {
  * ties toward positive infinity, then clamp to the byte range.
  * @throws std::invalid_argument If weights are nonfinite or can overflow the sum.
  */
-template<concepts::AnyView TView>
+template<concepts::ReadableView TView>
+requires concepts::Rgb8Element<typename TView::value_type>
 auto grayscale(TView aSource, rgb_weights aWeights)
 {
 	constexpr auto limit = std::numeric_limits<double>::max() / 1024;
