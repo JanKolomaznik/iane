@@ -16,6 +16,13 @@ cmake --build build --target convolution
   --border clamp --backend cuda --device 0 --warmup 2 --runs 10
 ```
 
+The same options can be loaded with `convolution --config settings.json`.
+Use long option names as JSON keys. Explicit CLI values override the file.
+
+```json
+{"input": "input.jpg", "output": "filtered.png", "kernel": "kernel.txt", "roi": [16, 8, 128, 96]}
+```
+
 stb detects the input format from the file contents and decodes it to gray8
 or RGB8, discarding alpha if present. The output extension selects PNG,
 JPEG, BMP or TGA. JPEG uses quality 95 and is lossy. BMP stores grayscale

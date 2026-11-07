@@ -1,13 +1,11 @@
-#define BOOST_TEST_MODULE iane_cuda_meta_algorithms
-#define BOOST_TEST_NO_MAIN
-#define BOOST_TEST_ALTERNATIVE_INIT_API
-#include <boost/test/included/unit_test.hpp>
+#define BOOST_TEST_MODULE iane_copy_cuda
+#include "cuda_test_main.hpp"
 
-#include "meta_algorithm_cases.hpp"
+#include "copy_cases.hpp"
 
-BOOST_AUTO_TEST_CASE(images_2d) { meta_tests::check_meta_algorithms<2>(iane::backend::cuda); }
-BOOST_AUTO_TEST_CASE(images_3d) { meta_tests::check_meta_algorithms<3>(iane::backend::cuda); }
-BOOST_AUTO_TEST_CASE(images_4d) { meta_tests::check_meta_algorithms<4>(iane::backend::cuda); }
+BOOST_AUTO_TEST_CASE(images_2d) { meta_tests::check_copy<2>(iane::backend::cuda); }
+BOOST_AUTO_TEST_CASE(images_3d) { meta_tests::check_copy<3>(iane::backend::cuda); }
+BOOST_AUTO_TEST_CASE(images_4d) { meta_tests::check_copy<4>(iane::backend::cuda); }
 
 BOOST_AUTO_TEST_CASE(strided_4d_round_trip)
 {
@@ -35,17 +33,4 @@ BOOST_AUTO_TEST_CASE(strided_4d_round_trip)
 		}
 		BOOST_TEST(aValue == (inside ? input[aPosition] : -1));
 	});
-}
-
-int main(int aArgc, char** aArgv)
-{
-	int devices = 0;
-	const auto status = cudaGetDeviceCount(&devices);
-	if (status == cudaErrorNoDevice || status == cudaErrorInsufficientDriver ||
-	    (status == cudaSuccess && devices == 0)) {
-		std::cout << "No usable CUDA device\n";
-		return 77;
-	}
-	iane::detail::check_cuda(status, "Enumerate CUDA devices");
-	return boost::unit_test::unit_test_main(&init_unit_test, aArgc, aArgv);
 }

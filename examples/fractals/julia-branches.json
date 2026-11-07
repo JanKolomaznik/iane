@@ -1,0 +1,15 @@
+{
+  "type": "julia",
+  "width": 1600,
+  "height": 1200,
+  "bounds": [-1.6, -1.2, 1.6, 1.2],
+  "c": [-0.4, 0.6],
+  "iterations": 500,
+  "colors": ["081722", "245b78", "55c3a3", "fff4bd", "e79559"],
+  "inside": "081722",
+  "color-period": 60,
+  "output": "julia-branches.png",
+  "backend": "cpu",
+  "warmup": 0,
+  "runs": 1
+}

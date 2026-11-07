@@ -17,6 +17,7 @@
 ## Examples
 
 - Make each example a standalone CLI utility with `--help`. Take input and output paths, algorithm parameters and backend selection from arguments or input files. Use 2D images for the first examples where appropriate. Projection and volume rendering retain a 3D input and 2D output.
+- Support a JSON configuration file through the shared example CLI. Use long option names as keys and let explicit command-line arguments override file values.
 - Put common backend dispatch, transfers and measurement in shared code. Time computation through completion on each backend. Log setup and transfers separately when applicable. Complete warm-up runs before sampling and exclude them from the reported statistics. Document which phases are timed.
 - Accompany each example with an English README that describes the command, inputs, outputs, expected behavior and timing fields. State its current build status.
 

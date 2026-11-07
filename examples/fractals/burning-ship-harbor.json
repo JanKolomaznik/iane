@@ -1,0 +1,14 @@
+{
+  "type": "burning-ship",
+  "width": 1600,
+  "height": 1200,
+  "bounds": [-1.81, -0.085, -1.69, 0.005],
+  "iterations": 500,
+  "colors": ["130a0c", "641726", "c44327", "ff9a3a", "fff0bd"],
+  "inside": "170c12",
+  "color-period": 52,
+  "output": "burning-ship-harbor.png",
+  "backend": "cpu",
+  "warmup": 0,
+  "runs": 1
+}

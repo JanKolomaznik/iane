@@ -13,30 +13,50 @@ namespace cli {
 
 namespace po = boost::program_options;
 
-/// Parse the shared image CLI and invoke the example with its parsed options.
-template<class TOperation>
+namespace detail {
+
+po::parsed_options parse_command_line(int aArgc, char** aArgv,
+	const po::options_description& aOptions, const po::positional_options_description& aPaths);
+
+void store_config(const std::string& aPath, const po::options_description& aOptions,
+	po::variables_map& aArgs);
+
+} // namespace detail
+
+/**
+ * @brief Parse shared options and invoke the example. CLI values override JSON.
+ * @tparam tHasInput Whether the utility accepts an input image path.
+ */
+template<bool tHasInput = true, class TOperation>
 int run(int aArgc, char** aArgv, const std::string& aName,
 	const po::options_description& aOperationOptions, TOperation aOperation)
 {
 	try {
-		po::options_description options(aName + " INPUT OUTPUT [options]");
+		po::options_description options(aName + (tHasInput ? " INPUT OUTPUT [options]" : " OUTPUT [options]"));
 		options.add_options()
 			("help,h", "Show help")
-			("input", po::value<std::string>()->required(), "Input image path (format detected from contents)")
+			("config", po::value<std::string>(), "Read options from a JSON file")
 			("output", po::value<std::string>()->required(), "Output image path (.png, .jpg, .jpeg, .bmp or .tga)")
 			("backend", po::value<std::string>()->default_value("cpu"), "cpu or cuda")
 			("device", po::value<int>()->default_value(0), "CUDA device index")
 			("warmup", po::value<int>()->default_value(2), "Number of warm-up runs")
 			("runs", po::value<int>()->default_value(10), "Number of measured runs");
-		options.add(aOperationOptions);
-
 		po::positional_options_description paths;
-		paths.add("input", 1).add("output", 1);
+		if constexpr (tHasInput) {
+			options.add_options()
+				("input", po::value<std::string>()->required(), "Input image path (format detected from contents)");
+			paths.add("input", 1);
+		}
+		paths.add("output", 1);
+		options.add(aOperationOptions);
 		po::variables_map args;
-		po::store(po::command_line_parser(aArgc, aArgv).options(options).positional(paths).run(), args);
+		po::store(detail::parse_command_line(aArgc, aArgv, options, paths), args);
 		if (args.count("help")) {
 			std::cout << options << '\n';
 			return 0;
+		}
+		if (args.count("config")) {
+			detail::store_config(args["config"].as<std::string>(), options, args);
 		}
 		po::notify(args);
 
@@ -57,7 +77,12 @@ int run(int aArgc, char** aArgv, const std::string& aName,
 			.warmup = warmup,
 			.runs = runs,
 		};
-		aOperation(args["input"].as<std::string>(), args["output"].as<std::string>(), execution, args);
+		const auto& output = args["output"].as<std::string>();
+		if constexpr (tHasInput) {
+			aOperation(args["input"].as<std::string>(), output, execution, args);
+		} else {
+			aOperation(output, execution, args);
+		}
 		return 0;
 	} catch (const std::exception& error) {
 		std::cerr << aName << ": " << error.what() << '\n';

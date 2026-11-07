@@ -12,6 +12,7 @@
 #include <numeric>
 #include <optional>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -87,7 +88,7 @@ struct stream_owner {
 /**
  * @brief Run an operation on host views or CUDA copies of those views.
  * @param aOptions Backend, device and measurement settings.
- * @param aSources Tuple of readable host memory views.
+ * @param aSources Tuple of readable host memory views, optionally empty for generators.
  * @param aDestination Writable host memory view.
  * @param aOperation Callable taking the unpacked input views, output view and execution
  * context. It returns a result supporting wait() and must produce the output
@@ -99,21 +100,28 @@ struct stream_owner {
  * on return. The CUDA path stages input once and downloads the final output.
  */
 template<concepts::HostView TDst, class TOperation, concepts::HostView... TSrc>
-requires (sizeof...(TSrc) > 0 && ((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
+requires (((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
 void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDestination, TOperation&& aOperation)
 {
 	if (aOptions.warmup < 0 || aOptions.runs <= 0 || aOptions.device < 0) {
 		throw std::invalid_argument("Invalid run options");
 	}
 
-	const auto size = std::get<0>(aSources).dimensions();
+	const auto domain = [&] {
+		if constexpr (sizeof...(TSrc) == 0) {
+			return aDestination;
+		} else {
+			return std::get<0>(aSources);
+		}
+	}();
+	const auto size = domain.dimensions();
 	const bool use_cuda = aOptions.backend == backend::cuda;
 	std::cout << "backend=" << (use_cuda ? "cuda" : "cpu");
 	if (use_cuda) {
 		std::cout << " device=" << aOptions.device;
 	}
 	std::cout << " size=" << math::detail::axis(size, 0);
-	constexpr auto dimension = std::tuple_element_t<0, std::tuple<TSrc...>>::dimension;
+	constexpr auto dimension = std::remove_cvref_t<decltype(domain)>::dimension;
 	for (int i = 1; i < dimension; ++i) {
 		std::cout << 'x' << math::detail::axis(size, i);
 	}
@@ -144,13 +152,17 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 		output.resize(aDestination.dimensions());
 	});
 	cuda_execution execution{queue.stream};
-	const auto upload = detail::elapsed_ms([&] {
-		[&]<std::size_t... tI>(std::index_sequence<tI...>) {
-			(copy(std::get<tI>(aSources), std::get<tI>(inputs).view(), execution), ...);
-		}(std::index_sequence_for<TSrc...>{});
-		execution.wait();
-	});
-	std::cout << "setup_ms=" << setup << " upload_ms=" << upload << '\n';
+	std::cout << "setup_ms=" << setup;
+	if constexpr (sizeof...(TSrc) > 0) {
+		const auto upload = detail::elapsed_ms([&] {
+			[&]<std::size_t... tI>(std::index_sequence<tI...>) {
+				(copy(std::get<tI>(aSources), std::get<tI>(inputs).view(), execution), ...);
+			}(std::index_sequence_for<TSrc...>{});
+			execution.wait();
+		});
+		std::cout << " upload_ms=" << upload;
+	}
+	std::cout << '\n';
 	detail::run_samples(aOptions, [&] {
 		std::apply([&](const auto&... aInput) {
 			aOperation(aInput.const_view()..., output.view(), execution).wait();
@@ -171,6 +183,14 @@ requires (TSrc::dimension > 0 && TDst::dimension > 0)
 void run_on(const run_options& aOptions, TSrc aSource, TDst aDestination, TOperation&& aOperation)
 {
 	run_on(aOptions, std::tuple{aSource}, aDestination, std::forward<TOperation>(aOperation));
+}
+
+/// Generate an output without staging any input. The callback takes the output and execution context.
+template<concepts::HostView TDst, class TOperation>
+requires (TDst::dimension > 0)
+void run_on(const run_options& aOptions, TDst aDestination, TOperation&& aOperation)
+{
+	run_on(aOptions, std::tuple{}, aDestination, std::forward<TOperation>(aOperation));
 }
 
 } // namespace iane

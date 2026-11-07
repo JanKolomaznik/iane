@@ -1,0 +1,14 @@
+{
+  "type": "mandelbrot",
+  "width": 1920,
+  "height": 1440,
+  "bounds": [-0.743963887037151, 0.13158590420533, -0.743323887037151, 0.13206590420533],
+  "iterations": 1300,
+  "colors": ["130824", "472775", "a953af", "f48da5", "ffe6aa", "318998"],
+  "inside": "0b0515",
+  "color-period": 144,
+  "output": "mandelbrot-spiral.png",
+  "backend": "cpu",
+  "warmup": 0,
+  "runs": 1
+}

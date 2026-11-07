@@ -1,0 +1,17 @@
+{
+  "type": "julia",
+  "width": 1600,
+  "height": 1200,
+  "bounds": [-1.6, -1.2, 1.6, 1.2],
+  "iterations": 240,
+  "c": [-0.8, 0.156],
+  "c-end": [0.285, 0.01],
+  "frames": 24,
+  "colors": ["07051f", "48268a", "de5797", "ffbc6c", "fcf4d5"],
+  "inside": "07051f",
+  "color-period": 48,
+  "output": "julia.png",
+  "backend": "cpu",
+  "warmup": 0,
+  "runs": 1
+}

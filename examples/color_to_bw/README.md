@@ -13,13 +13,20 @@ cmake --build build --target color_to_bw
 
 Examples are enabled by default. Use `-DIANE_BUILD_EXAMPLES=OFF` to
 disable them or `-DIANE_ENABLE_CUDA=OFF` to build without a CUDA toolchain.
-CMake needs to find Boost.Program_options when examples are enabled.
+CMake needs to find Boost.Program_options and Boost.JSON when examples are enabled.
 
 ## Command
 
 ```sh
 ./build/examples/color_to_bw input.jpg gray.png --backend cuda \
   --weights 0.2126,0.7152,0.0722 --warmup 2 --runs 10
+```
+
+The same options can be loaded with `color_to_bw --config settings.json`.
+Use long option names as JSON keys. Explicit CLI values override the file.
+
+```json
+{"input": "input.jpg", "output": "gray.png", "weights": "0.2126,0.7152,0.0722"}
 ```
 
 Use `--backend cpu` to run the same conversion in RAM. The CLI provides

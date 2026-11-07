@@ -1,0 +1,14 @@
+{
+  "type": "mandelbrot",
+  "width": 1920,
+  "height": 1440,
+  "bounds": [-0.81, 0.025, -0.65, 0.145],
+  "iterations": 700,
+  "colors": ["061327", "144d76", "2aa9af", "f7df9a", "d05b37"],
+  "inside": "07101d",
+  "color-period": 96,
+  "output": "mandelbrot-seahorse.png",
+  "backend": "cpu",
+  "warmup": 0,
+  "runs": 1
+}
