@@ -1,79 +1,110 @@
 #include "io.hpp"
 
-#define STBI_ONLY_PNG
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include <cstdio>
+#include <algorithm>
+#include <cctype>
 #include <cstring>
-#include <limits>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 namespace io {
 
 namespace {
 
 template<class TPixel>
-iane::host_image<TPixel, 2> read_png(const std::string& aPath, int aColorType, int aComponents)
+iane::host_image<TPixel, 2> make_image(const stbi_uc* aPixels, int aWidth, int aHeight, int aChannels)
 {
-	const auto close_file = [](std::FILE* aFile) { std::fclose(aFile); };
-	const std::unique_ptr<std::FILE, decltype(close_file)> file{
-		std::fopen(aPath.c_str(), "rb"), close_file};
-	if (!file) {
-		throw std::runtime_error(aPath + ": unable to open PNG");
+	iane::host_image<TPixel, 2> result{aWidth, aHeight};
+	if (aChannels == sizeof(TPixel)) {
+		std::memcpy(result.pointer(), aPixels,
+			static_cast<std::size_t>(result.strides()[1]) * aHeight);
+	} else {
+		// stb places alpha after the gray or RGB channels.
+		const auto count = static_cast<std::size_t>(aWidth) * aHeight;
+		for (std::size_t i = 0; i < count; ++i) {
+			std::memcpy(result.pointer() + i, aPixels + i * aChannels, sizeof(TPixel));
+		}
 	}
-
-	// The PNG signature and IHDR identify the original pixel format.
-	constexpr unsigned char png_header[] = {
-		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R'
-	};
-	unsigned char header[26];
-	if (std::fread(header, 1, sizeof(header), file.get()) != sizeof(header)
-	    || std::memcmp(header, png_header, sizeof(png_header)) != 0
-	    || header[24] != 8 || header[25] != aColorType) {
-		throw std::runtime_error(aPath + (aColorType == 0 ? ": expected a gray8 PNG" : ": expected an RGB8 PNG"));
-	}
-	std::rewind(file.get());
-
-	int width, height, channels;
-	const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels{
-		stbi_load_from_file(file.get(), &width, &height, &channels, aComponents),
-		stbi_image_free};
-	if (!pixels) {
-		throw std::runtime_error(aPath + ": unable to decode PNG");
-	}
-	if (width > std::numeric_limits<int>::max() / static_cast<int>(sizeof(TPixel))) {
-		throw std::runtime_error(aPath + ": PNG width exceeds IANE stride limits");
-	}
-
-	iane::host_image<TPixel, 2> result{width, height};
-	std::memcpy(result.pointer(), pixels.get(),
-		static_cast<std::size_t>(result.strides()[1]) * height);
 	return result;
+}
+
+template<class TPixel>
+void write_image(const std::string& aPath, const iane::host_image<TPixel, 2>& aInput, int aComponents)
+{
+	auto extension = std::filesystem::path(aPath).extension().string();
+	std::ranges::transform(extension, extension.begin(),
+		[](unsigned char aCharacter) { return static_cast<char>(std::tolower(aCharacter)); });
+	const auto size = aInput.dimensions();
+	const auto* pixels = aInput.pointer();
+	const auto* path = aPath.c_str();
+
+	int written;
+	if (extension == ".png") {
+		written = stbi_write_png(path, size[0], size[1], aComponents, pixels, aInput.strides()[1]);
+	} else if (extension == ".jpg" || extension == ".jpeg") {
+		written = stbi_write_jpg(path, size[0], size[1], aComponents, pixels, 95);
+	} else if (extension == ".bmp") {
+		written = stbi_write_bmp(path, size[0], size[1], aComponents, pixels);
+	} else if (extension == ".tga") {
+		written = stbi_write_tga(path, size[0], size[1], aComponents, pixels);
+	} else {
+		throw std::invalid_argument(aPath + ": output extension must be .png, .jpg, .jpeg, .bmp or .tga");
+	}
+	if (!written) {
+		throw std::runtime_error(aPath + ": unable to write image");
+	}
 }
 
 } // namespace
 
+image8 read_image8(const std::string& aPath)
+{
+	int width, height, channels;
+	const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels{
+		stbi_load(aPath.c_str(), &width, &height, &channels, 0),
+		stbi_image_free};
+	if (!pixels) {
+		throw std::runtime_error(aPath + ": unable to decode image");
+	}
+	if (channels <= 2) {
+		return make_image<std::uint8_t>(pixels.get(), width, height, channels);
+	}
+	return make_image<rgb8_pixel>(pixels.get(), width, height, channels);
+}
+
 iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& aPath)
 {
-	return read_png<rgb8_pixel>(aPath, 2, STBI_rgb);
+	auto image = read_image8(aPath);
+	if (auto* rgb = std::get_if<iane::host_image<rgb8_pixel, 2>>(&image)) {
+		return std::move(*rgb);
+	}
+	throw std::runtime_error(aPath + ": expected a color image");
 }
 
 iane::host_image<std::uint8_t, 2> read_gray8(const std::string& aPath)
 {
-	return read_png<std::uint8_t>(aPath, 0, STBI_grey);
+	auto image = read_image8(aPath);
+	if (auto* gray = std::get_if<iane::host_image<std::uint8_t, 2>>(&image)) {
+		return std::move(*gray);
+	}
+	throw std::runtime_error(aPath + ": expected a grayscale image");
 }
 
 void write_gray8(const std::string& aPath, const iane::host_image<std::uint8_t, 2>& aInput)
 {
-	const auto size = aInput.dimensions();
-	if (!stbi_write_png(aPath.c_str(), size[0], size[1], 1, aInput.pointer(), aInput.strides()[1])) {
-		throw std::runtime_error(aPath + ": unable to write PNG");
-	}
+	write_image(aPath, aInput, STBI_grey);
+}
+
+void write_rgb8(const std::string& aPath, const iane::host_image<rgb8_pixel, 2>& aInput)
+{
+	write_image(aPath, aInput, STBI_rgb);
 }
 
 } // namespace io

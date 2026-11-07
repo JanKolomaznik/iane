@@ -9,9 +9,55 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 namespace po = cli::po;
+
+namespace io {
+
+namespace {
+
+// Accumulate each channel independently before converting back to packed RGB.
+struct rgb_sum {
+	double r;
+	double g;
+	double b;
+
+	IANE_DECL_HYBRID rgb_sum operator+(rgb_sum aOther) const
+	{
+		return {r + aOther.r, g + aOther.g, b + aOther.b};
+	}
+
+	IANE_DECL_HYBRID explicit operator rgb8_pixel() const
+	{
+		return {to_byte(r), to_byte(g), to_byte(b)};
+	}
+
+private:
+	IANE_DECL_HYBRID static std::uint8_t to_byte(double aValue)
+	{
+		if (!(aValue > 0.0)) {
+			return 0;
+		}
+		if (aValue >= 255.0) {
+			return 255;
+		}
+		const auto integer = static_cast<unsigned int>(aValue);
+		return static_cast<std::uint8_t>(integer + (aValue - integer >= 0.5));
+	}
+};
+
+} // namespace
+
+// Provide the pixel-times-coefficient operation used by convolve via ADL.
+IANE_DECL_HYBRID rgb_sum operator*(rgb8_pixel aPixel, float aCoefficient)
+{
+	const double coefficient = aCoefficient;
+	return {aPixel.r * coefficient, aPixel.g * coefficient, aPixel.b * coefficient};
+}
+
+} // namespace io
 
 namespace {
 
@@ -59,31 +105,38 @@ int main(int aArgc, char** aArgv)
 				throw std::invalid_argument("Border must be clamp or zero");
 			}
 
-			auto input = io::read_gray8(aInputPath);
-			auto kernel = read_kernel(aArgs["kernel"].as<std::string>());
-			auto source = input.const_view();
-			if (aArgs.count("roi")) {
-				const auto& roi = aArgs["roi"].as<std::vector<int>>();
-				const auto size = source.dimensions();
-				if (roi.size() != 4 || roi[0] < 0 || roi[1] < 0 ||
-				    roi[2] <= 0 || roi[3] <= 0 ||
-				    roi[2] > size[0] - roi[0] || roi[3] > size[1] - roi[1]) {
-					throw std::invalid_argument("ROI must be a nonempty rectangle inside the input");
+			const auto input = io::read_image8(aInputPath);
+			const auto kernel = read_kernel(aArgs["kernel"].as<std::string>());
+			std::visit([&](const auto& aInput) {
+				auto source = aInput.const_view();
+				if (aArgs.count("roi")) {
+					const auto& roi = aArgs["roi"].as<std::vector<int>>();
+					const auto size = source.dimensions();
+					if (roi.size() != 4 || roi[0] < 0 || roi[1] < 0 ||
+					    roi[2] <= 0 || roi[3] <= 0 ||
+					    roi[2] > size[0] - roi[0] || roi[3] > size[1] - roi[1]) {
+						throw std::invalid_argument("ROI must be a nonempty rectangle inside the input");
+					}
+					using view_t = decltype(source);
+					source = source.subview(typename view_t::coord_t{roi[0], roi[1]},
+						typename view_t::extents_t{roi[2], roi[3]});
 				}
-				using view_t = decltype(source);
-				source = source.subview(view_t::coord_t{roi[0], roi[1]},
-					view_t::extents_t{roi[2], roi[3]});
-			}
-			iane::host_image<std::uint8_t, 2> output{source.dimensions()};
-			const iane::convolution_options convolution{
-				.border = border == "clamp" ? iane::border_mode::clamp : iane::border_mode::zero,
-			};
+				using pixel_t = typename decltype(source)::value_type;
+				iane::host_image<pixel_t, 2> output{source.dimensions()};
+				const iane::convolution_options convolution{
+					.border = border == "clamp" ? iane::border_mode::clamp : iane::border_mode::zero,
+				};
 
-			iane::run_on(aExecution, std::tuple{source, kernel.const_view()}, output.view(),
-				[&](auto aSrc, auto aCoefficients, auto aDst, auto& aExec) {
-					return iane::convolve(aSrc, aCoefficients, aDst, convolution, aExec);
-				});
+				iane::run_on(aExecution, std::tuple{source, kernel.const_view()}, output.view(),
+					[&](auto aSrc, auto aCoefficients, auto aDst, auto& aExec) {
+						return iane::convolve(aSrc, aCoefficients, aDst, convolution, aExec);
+					});
 
-			io::write_gray8(aOutputPath, output);
+				if constexpr (std::is_same_v<pixel_t, io::rgb8_pixel>) {
+					io::write_rgb8(aOutputPath, output);
+				} else {
+					io::write_gray8(aOutputPath, output);
+				}
+			}, input);
 		});
 }

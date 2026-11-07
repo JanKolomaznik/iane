@@ -9,7 +9,7 @@
 
 #include <iane/config.hpp>
 #include <iane/math/coord_traits.hpp>
-#include <iane/math/vector_util.hpp>
+#include <iane/resource/packed_layout.hpp>
 #include <iane/view/host_image_view.hpp>
 #include <iane/view/const_host_image_view.hpp>
 
@@ -39,10 +39,7 @@ struct host_image_resource {
 	static owner_t
 	allocate(const extents_t &aSize)
 	{
-		using iane::math::coord_cast;
-		using iane::math::product;
-
-		const auto count = product(coord_cast<std::int64_t>(aSize));
+		const auto count = detail::packed_layout<TElement, tDim>(aSize).first;
 		owner_t o;
 		o.ptr.reset(new element_t[count]);
 		o.size = aSize;
@@ -63,25 +60,10 @@ struct host_image_resource {
 	// Strides (contiguous, element-major, converted to bytes)
 	// ---------------------------------------------------------------------
 
-	static IANE_DECL_HYBRID extents_t
+	static extents_t
 	strides(const extents_t &aSize, const owner_t &)
 	{
-		extents_t s;
-
-		if constexpr (tDim == 1) {
-			s = 1;
-		} else {
-			s[0] = 1;
-			for (int i = 1; i < tDim; ++i) {
-				s[i] = s[i - 1] * aSize[i - 1];
-			}
-		}
-
-		// Convert from element strides to byte strides
-		for (int i = 0; i < tDim; ++i) {
-			s[i] *= static_cast<int>(sizeof(element_t));
-		}
-		return s;
+		return detail::packed_layout<TElement, tDim>(aSize).second;
 	}
 };
 

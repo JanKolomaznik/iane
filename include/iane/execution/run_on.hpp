@@ -87,8 +87,8 @@ struct stream_owner {
 /**
  * @brief Run an operation on host views or CUDA copies of those views.
  * @param aOptions Backend, device and measurement settings.
- * @param aSources Tuple of readable 2D host memory views.
- * @param aDestination Writable 2D host memory view.
+ * @param aSources Tuple of readable host memory views.
+ * @param aDestination Writable host memory view.
  * @param aOperation Callable taking the unpacked input views, output view and execution
  * context. It returns a result supporting wait() and must produce the output
  * on each invocation.
@@ -99,7 +99,7 @@ struct stream_owner {
  * on return. The CUDA path stages input once and downloads the final output.
  */
 template<concepts::HostView TDst, class TOperation, concepts::HostView... TSrc>
-requires (sizeof...(TSrc) > 0 && ((TSrc::dimension == 2) && ...) && TDst::dimension == 2)
+requires (sizeof...(TSrc) > 0 && ((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
 void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDestination, TOperation&& aOperation)
 {
 	if (aOptions.warmup < 0 || aOptions.runs <= 0 || aOptions.device < 0) {
@@ -112,8 +112,12 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 	if (use_cuda) {
 		std::cout << " device=" << aOptions.device;
 	}
-	std::cout << " size=" << size[0] << 'x' << size[1]
-		<< " warmup=" << aOptions.warmup << " runs=" << aOptions.runs << '\n';
+	std::cout << " size=" << math::detail::axis(size, 0);
+	constexpr auto dimension = std::tuple_element_t<0, std::tuple<TSrc...>>::dimension;
+	for (int i = 1; i < dimension; ++i) {
+		std::cout << 'x' << math::detail::axis(size, i);
+	}
+	std::cout << " warmup=" << aOptions.warmup << " runs=" << aOptions.runs << '\n';
 
 	if (!use_cuda) {
 		cpu_execution execution;
@@ -127,8 +131,8 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 
 #if defined(__CUDACC__)
 	std::optional<detail::device_guard> device;
-	std::tuple<device_image<typename TSrc::value_type>...> inputs;
-	device_image<typename TDst::value_type> output;
+	std::tuple<device_image<typename TSrc::value_type, TSrc::dimension>...> inputs;
+	device_image<typename TDst::value_type, TDst::dimension> output;
 	detail::stream_owner queue;
 	const auto setup = detail::elapsed_ms([&] {
 		device.emplace(aOptions.device);
@@ -163,7 +167,7 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 
 /// Run a single-input operation. See the tuple overload for execution and timing.
 template<concepts::HostView TSrc, concepts::HostView TDst, class TOperation>
-requires (TSrc::dimension == 2 && TDst::dimension == 2)
+requires (TSrc::dimension > 0 && TDst::dimension > 0)
 void run_on(const run_options& aOptions, TSrc aSource, TDst aDestination, TOperation&& aOperation)
 {
 	run_on(aOptions, std::tuple{aSource}, aDestination, std::forward<TOperation>(aOperation));

@@ -2,7 +2,6 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include <iane/image/image.hpp>
-#include <iane/algorithms/convolution.hpp>
 #include <iane/resource/host/resource_host.hpp>
 #include <iane/math/vector.hpp>	// for dim_traits and simple_vector utilities
 
@@ -93,54 +92,4 @@ BOOST_AUTO_TEST_CASE(resize_reallocates_memory)
 	BOOST_CHECK(old_ptr != new_ptr);	// should be different memory
 	BOOST_TEST(img.dimensions()[0] == 4);
 	BOOST_TEST(img.dimensions()[1] == 4);
-}
-
-BOOST_AUTO_TEST_CASE(meta_algorithms_on_host_views)
-{
-	host_img<int, 2> source(3, 1);
-	host_img<int, 2> result(3, 1);
-
-	for_each_position(source.view(), [](int& aValue, const coord2& aPosition) {
-		aValue = aPosition[0] + 1;
-	}).wait();
-	for_each(source.view(), [](int& aValue) { aValue *= 2; }).wait();
-	transform(source.const_view(), result.view(), [](int aValue) { return aValue + 1; }).wait();
-	BOOST_TEST(result.pointer()[2] == 7);
-
-	transform_position(source.const_view(), result.view(), [](int aValue, const coord2& aPosition) {
-		return aValue - aPosition[0];
-	}).wait();
-	BOOST_TEST(result.pointer()[2] == 4);
-
-	int left_samples = 0;
-	for_each_locator(source.const_view(), [&](const concepts::Locator auto& aLocator) {
-		left_samples += aLocator[coord2{-1, 0}];
-	}, border_mode::zero).wait();
-	BOOST_TEST(left_samples == 6);
-}
-
-BOOST_AUTO_TEST_CASE(convolution_flips_kernel_and_respects_crop_boundary)
-{
-	host_img<std::uint8_t, 2> source(4, 2);
-	host_img<std::uint8_t, 2> result(2, 2);
-	host_img<float, 2> kernel(3, 1);
-	for_each_position(source.view(), [](std::uint8_t& aValue, const coord2& aPosition) {
-		aValue = static_cast<std::uint8_t>(10 * aPosition[0] + 100 * aPosition[1]);
-	}).wait();
-	kernel.pointer()[0] = 1.0f;
-	kernel.pointer()[1] = 0.0f;
-	kernel.pointer()[2] = 0.0f;
-
-	const auto crop = source.const_view().subview(coord2{1, 0}, coord2{2, 2});
-	convolve(crop, kernel.const_view(), result.view(), {border_mode::clamp}).wait();
-	BOOST_TEST(+result.pointer()[0] == 20);
-	BOOST_TEST(+result.pointer()[1] == 20);
-	BOOST_TEST(+result.pointer()[2] == 120);
-	BOOST_TEST(+result.pointer()[3] == 120);
-
-	convolve(crop, kernel.const_view(), result.view(), {border_mode::zero}).wait();
-	BOOST_TEST(+result.pointer()[0] == 20);
-	BOOST_TEST(+result.pointer()[1] == 0);
-	BOOST_TEST(+result.pointer()[2] == 120);
-	BOOST_TEST(+result.pointer()[3] == 0);
 }

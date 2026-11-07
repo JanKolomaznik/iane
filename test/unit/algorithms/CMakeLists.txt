@@ -1,0 +1,10 @@
+add_executable(test_meta_algorithms test_meta_algorithms.cpp)
+target_link_libraries(test_meta_algorithms PRIVATE iane Boost::unit_test_framework)
+add_test(NAME meta_algorithms_cpu COMMAND test_meta_algorithms)
+
+if(IANE_ENABLE_CUDA)
+	add_executable(test_meta_algorithms_cuda test_meta_algorithms_cuda.cu)
+	target_link_libraries(test_meta_algorithms_cuda PRIVATE iane Boost::unit_test_framework)
+	add_test(NAME meta_algorithms_cuda COMMAND test_meta_algorithms_cuda)
+	set_tests_properties(meta_algorithms_cuda PROPERTIES SKIP_RETURN_CODE 77)
+endif()

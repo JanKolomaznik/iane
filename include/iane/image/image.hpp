@@ -16,6 +16,8 @@
  */
 
 #include <iane/config.hpp>
+
+#include <utility>
 #include <iane/math/coord_traits.hpp>	// dim_traits
 // Resource-specific headers are included by user code.
 
@@ -61,13 +63,6 @@ public:
 		, mOwner(resource_t::allocate(aSize))
 		, mStrides(resource_t::strides(aSize, mOwner))
 	{}
-
-	/// Convenience: 1D image
-	IANE_DECL_HOST explicit image(int aS0)
-		: image(extents_t{aS0})
-	{
-		static_assert(tDim == 1, "Image dimensionality mismatch for 1D ctor");
-	}
 
 	/// Convenience: 2D image
 	IANE_DECL_HOST image(int aS0, int aS1)
@@ -134,9 +129,11 @@ public:
 	IANE_DECL_HOST void
 	resize(extents_t aNewSize)
 	{
-		mSize    = aNewSize;
-		mOwner   = resource_t::allocate(aNewSize);
-		mStrides = resource_t::strides(aNewSize, mOwner);
+		auto owner = resource_t::allocate(aNewSize);
+		const auto strides = resource_t::strides(aNewSize, owner);
+		mOwner = std::move(owner);
+		mSize = aNewSize;
+		mStrides = strides;
 	}
 
 	IANE_DECL_HOST void

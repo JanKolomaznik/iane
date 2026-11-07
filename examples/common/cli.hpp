@@ -22,8 +22,8 @@ int run(int aArgc, char** aArgv, const std::string& aName,
 		po::options_description options(aName + " INPUT OUTPUT [options]");
 		options.add_options()
 			("help,h", "Show help")
-			("input", po::value<std::string>()->required(), "Input PNG path")
-			("output", po::value<std::string>()->required(), "Output PNG path")
+			("input", po::value<std::string>()->required(), "Input image path (format detected from contents)")
+			("output", po::value<std::string>()->required(), "Output image path (.png, .jpg, .jpeg, .bmp or .tga)")
 			("backend", po::value<std::string>()->default_value("cpu"), "cpu or cuda")
 			("device", po::value<int>()->default_value(0), "CUDA device index")
 			("warmup", po::value<int>()->default_value(2), "Number of warm-up runs")

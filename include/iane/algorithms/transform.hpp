@@ -13,9 +13,9 @@ struct value_transform {
 
 	IANE_CUDA_HD_WARNING_DISABLE
 	template<class TValue>
-	IANE_DECL_HYBRID void operator()(TValue& aDestination, const typename TSource::coord_t& aPosition)
+	IANE_DECL_HYBRID void operator()(TValue&& aDestination, const typename TSource::coord_t& aPosition)
 	{
-		aDestination = function(source[aPosition]);
+		static_cast<TValue&&>(aDestination) = function(source[aPosition]);
 	}
 };
 
@@ -27,9 +27,9 @@ struct position_transform {
 
 	IANE_CUDA_HD_WARNING_DISABLE
 	template<class TValue>
-	IANE_DECL_HYBRID void operator()(TValue& aDestination, const typename TSource::coord_t& aPosition)
+	IANE_DECL_HYBRID void operator()(TValue&& aDestination, const typename TSource::coord_t& aPosition)
 	{
-		aDestination = function(source[aPosition], aPosition);
+		static_cast<TValue&&>(aDestination) = function(source[aPosition], aPosition);
 	}
 };
 
@@ -42,15 +42,15 @@ struct locator_transform {
 
 	IANE_CUDA_HD_WARNING_DISABLE
 	template<class TValue>
-	IANE_DECL_HYBRID void operator()(TValue& aDestination, const typename TSource::coord_t& aPosition)
+	IANE_DECL_HYBRID void operator()(TValue&& aDestination, const typename TSource::coord_t& aPosition)
 	{
-		aDestination = function(image_locator<TSource>{source, aPosition, border});
+		static_cast<TValue&&>(aDestination) = function(image_locator<TSource>{source, aPosition, border});
 	}
 };
 
 template<class TSrc, class TDst>
 concept compatible_transform_views =
-	TSrc::dimension == 2 && TDst::dimension == 2 &&
+	TSrc::dimension > 0 && TSrc::dimension == TDst::dimension &&
 	((concepts::HostView<TSrc> && concepts::HostView<TDst>) ||
 	 (concepts::DeviceView<TSrc> && concepts::DeviceView<TDst>));
 
@@ -59,8 +59,11 @@ auto matching_dimensions(TSrc aSource, TDst aDestination)
 {
 	const auto size = aDestination.dimensions();
 	const auto input = aSource.dimensions();
-	if (size[0] < 0 || size[1] < 0 || input[0] != size[0] || input[1] != size[1]) {
-		throw std::invalid_argument("Source and destination require matching nonnegative dimensions");
+	for (int i = 0; i < TDst::dimension; ++i) {
+		if (math::detail::axis(size, i) < 0 ||
+		    math::detail::axis(input, i) != math::detail::axis(size, i)) {
+			throw std::invalid_argument("Source and destination require matching nonnegative dimensions");
+		}
 	}
 	return size;
 }

@@ -1,7 +1,7 @@
 # color_to_bw
 
-Convert an RGB8 PNG to an 8-bit grayscale PNG of the same dimensions.
-The example uses Boost.Program_options for the CLI and stb for PNG I/O.
+Convert a color image to an 8-bit grayscale image of the same dimensions.
+The example uses Boost.Program_options for the CLI and stb for image I/O.
 The stb headers are included in `examples/common`.
 
 ## Build
@@ -18,13 +18,18 @@ CMake needs to find Boost.Program_options when examples are enabled.
 ## Command
 
 ```sh
-./build/examples/color_to_bw input.png gray.png --backend cuda \
+./build/examples/color_to_bw input.jpg gray.png --backend cuda \
   --weights 0.2126,0.7152,0.0722 --warmup 2 --runs 10
 ```
 
 Use `--backend cpu` to run the same conversion in RAM. The CLI provides
 `--help` and accepts `--device` for CUDA device selection. The run count
 must be positive and the warm-up count must be nonnegative.
+
+stb detects the input format from its contents and decodes to RGB8,
+discarding alpha if present. The output extension selects PNG, JPEG, BMP
+or TGA. JPEG uses quality 95 and is lossy. BMP stores the grayscale result
+as RGB with identical channel values.
 
 The weights apply to the stored R, G and B channel values in that order.
 Round the weighted sum to the nearest integer with ties toward positive
@@ -59,5 +64,5 @@ the backend, CUDA device when applicable, image size and run counts.
 | `download_ms` | One transfer of the final result to RAM, through completion. |
 
 CPU reports only compute timing. Warm-up invocations also wait for
-completion and are excluded from the statistics. PNG decoding and writing
+completion and are excluded from the statistics. Image decoding and writing
 happen outside `run_on` and its timing.

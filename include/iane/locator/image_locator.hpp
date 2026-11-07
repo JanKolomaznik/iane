@@ -2,6 +2,7 @@
 
 #include <iane/concepts/view.hpp>
 #include <iane/config.hpp>
+#include <iane/math/index.hpp>
 
 #include <concepts>
 #include <cstdint>
@@ -13,13 +14,13 @@ enum class border_mode { clamp, zero };
 
 /**
  * @brief Read values at offsets relative to a position in a nonempty view.
- * @tparam TView A readable image view with vector coordinates.
+ * @tparam TView A readable image view with scalar or vector coordinates.
  *
  * The locator borrows the view's storage and treats the view's extent as
  * the boundary, including when the view represents a crop.
  */
 template<concepts::AnyView TView>
-requires (TView::dimension >= 2)
+requires (TView::dimension > 0)
 class image_locator {
 public:
 	using value_type = typename TView::value_type;
@@ -39,16 +40,16 @@ public:
 	IANE_DECL_HYBRID value_type operator[](const offset_t& aOffset) const
 	{
 		const auto size = mSource.dimensions();
-		coord_t sample;
+		coord_t sample{};
 		for (int axis = 0; axis < dimension; ++axis) {
-			const auto coordinate = static_cast<std::int64_t>(mPosition[axis]) + aOffset[axis];
-			if (coordinate >= 0 && coordinate < size[axis]) {
-				sample[axis] = static_cast<int>(coordinate);
+			const auto coordinate = static_cast<std::int64_t>(math::detail::axis(mPosition, axis)) + math::detail::axis(aOffset, axis);
+			if (coordinate >= 0 && coordinate < math::detail::axis(size, axis)) {
+				math::detail::axis(sample, axis) = static_cast<int>(coordinate);
 			} else {
-				if (mBorder == border_mode::zero || size[axis] <= 0) {
+				if (mBorder == border_mode::zero || math::detail::axis(size, axis) <= 0) {
 					return {};
 				}
-				sample[axis] = coordinate < 0 ? 0 : size[axis] - 1;
+				math::detail::axis(sample, axis) = coordinate < 0 ? 0 : math::detail::axis(size, axis) - 1;
 			}
 		}
 		return mSource[sample];
