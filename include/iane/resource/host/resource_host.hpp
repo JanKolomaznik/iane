@@ -37,15 +37,15 @@ struct host_image_resource {
 	// ---------------------------------------------------------------------
 
 	static owner_t
-	allocate(const extents_t &size)
+	allocate(const extents_t &aSize)
 	{
 		using iane::math::coord_cast;
 		using iane::math::product;
 
-		const auto count = product(coord_cast<std::int64_t>(size));
+		const auto count = product(coord_cast<std::int64_t>(aSize));
 		owner_t o;
 		o.ptr.reset(new element_t[count]);
-		o.size = size;
+		o.size = aSize;
 		return o;
 	}
 
@@ -53,10 +53,10 @@ struct host_image_resource {
 	// Pointer
 	// ---------------------------------------------------------------------
 
-	static IANE_DECL_HYBRID element_t *
-	pointer(const owner_t &o)
+	static IANE_DECL_HOST element_t *
+	pointer(const owner_t &aO)
 	{
-		return o.ptr.get();
+		return aO.ptr.get();
 	}
 
 	// ---------------------------------------------------------------------
@@ -64,7 +64,7 @@ struct host_image_resource {
 	// ---------------------------------------------------------------------
 
 	static IANE_DECL_HYBRID extents_t
-	strides(const extents_t &size, const owner_t &)
+	strides(const extents_t &aSize, const owner_t &)
 	{
 		extents_t s;
 
@@ -73,7 +73,7 @@ struct host_image_resource {
 		} else {
 			s[0] = 1;
 			for (int i = 1; i < tDim; ++i) {
-				s[i] = s[i - 1] * size[i - 1];
+				s[i] = s[i - 1] * aSize[i - 1];
 			}
 		}
 

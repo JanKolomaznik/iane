@@ -15,13 +15,16 @@
 
 namespace io {
 
-iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& path)
+namespace {
+
+template<class TPixel>
+iane::host_image<TPixel, 2> read_png(const std::string& aPath, int aColorType, int aComponents)
 {
-	const auto close_file = [](std::FILE* file) { std::fclose(file); };
+	const auto close_file = [](std::FILE* aFile) { std::fclose(aFile); };
 	const std::unique_ptr<std::FILE, decltype(close_file)> file{
-		std::fopen(path.c_str(), "rb"), close_file};
+		std::fopen(aPath.c_str(), "rb"), close_file};
 	if (!file) {
-		throw std::runtime_error(path + ": unable to open PNG");
+		throw std::runtime_error(aPath + ": unable to open PNG");
 	}
 
 	// The PNG signature and IHDR identify the original pixel format.
@@ -31,33 +34,45 @@ iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& path)
 	unsigned char header[26];
 	if (std::fread(header, 1, sizeof(header), file.get()) != sizeof(header)
 	    || std::memcmp(header, png_header, sizeof(png_header)) != 0
-	    || header[24] != 8 || header[25] != 2) {
-		throw std::runtime_error(path + ": expected an RGB8 PNG");
+	    || header[24] != 8 || header[25] != aColorType) {
+		throw std::runtime_error(aPath + (aColorType == 0 ? ": expected a gray8 PNG" : ": expected an RGB8 PNG"));
 	}
 	std::rewind(file.get());
 
 	int width, height, channels;
 	const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels{
-		stbi_load_from_file(file.get(), &width, &height, &channels, STBI_rgb),
+		stbi_load_from_file(file.get(), &width, &height, &channels, aComponents),
 		stbi_image_free};
 	if (!pixels) {
-		throw std::runtime_error(path + ": unable to decode PNG");
+		throw std::runtime_error(aPath + ": unable to decode PNG");
 	}
-	if (width > std::numeric_limits<int>::max() / static_cast<int>(sizeof(rgb8_pixel))) {
-		throw std::runtime_error(path + ": PNG width exceeds IANE stride limits");
+	if (width > std::numeric_limits<int>::max() / static_cast<int>(sizeof(TPixel))) {
+		throw std::runtime_error(aPath + ": PNG width exceeds IANE stride limits");
 	}
 
-	iane::host_image<rgb8_pixel, 2> result{width, height};
+	iane::host_image<TPixel, 2> result{width, height};
 	std::memcpy(result.pointer(), pixels.get(),
 		static_cast<std::size_t>(result.strides()[1]) * height);
 	return result;
 }
 
-void write_gray8(const std::string& path, const iane::host_image<std::uint8_t, 2>& input)
+} // namespace
+
+iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& aPath)
 {
-	const auto size = input.dimensions();
-	if (!stbi_write_png(path.c_str(), size[0], size[1], 1, input.pointer(), input.strides()[1])) {
-		throw std::runtime_error(path + ": unable to write PNG");
+	return read_png<rgb8_pixel>(aPath, 2, STBI_rgb);
+}
+
+iane::host_image<std::uint8_t, 2> read_gray8(const std::string& aPath)
+{
+	return read_png<std::uint8_t>(aPath, 0, STBI_grey);
+}
+
+void write_gray8(const std::string& aPath, const iane::host_image<std::uint8_t, 2>& aInput)
+{
+	const auto size = aInput.dimensions();
+	if (!stbi_write_png(aPath.c_str(), size[0], size[1], 1, aInput.pointer(), aInput.strides()[1])) {
+		throw std::runtime_error(aPath + ": unable to write PNG");
 	}
 }
 

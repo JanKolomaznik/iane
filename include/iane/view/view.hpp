@@ -7,34 +7,34 @@ namespace iane::view {
    Identity overloads: view(view) → identity
    --------------------------------------------------------- */
 
-template<concepts::AnyView V>
-inline constexpr V view(const V &v)
+template<concepts::AnyView TVector>
+inline constexpr TVector view(const TVector &aV)
 {
-	return v;
+	return aV;
 }
 
-template<concepts::AnyView V>
-inline constexpr V const_view(const V &v)
+template<concepts::AnyView TVector>
+inline constexpr TVector const_view(const TVector &aV)
 {
-	return v;
+	return aV;
 }
 
 /* ---------------------------------------------------------
    view(image) → image.view()
    --------------------------------------------------------- */
 
-template<typename Img>
-	requires requires (const Img &i) { i.view(); }
-inline auto view(const Img &img)
+template<typename TImg>
+	requires requires (const TImg &aI) { aI.view(); }
+inline auto view(const TImg &aImg)
 {
-	return img.view();
+	return aImg.view();
 }
 
-template<typename Img>
-	requires requires (const Img &i) { i.const_view(); }
-inline auto const_view(const Img &img)
+template<typename TImg>
+	requires requires (const TImg &aI) { aI.const_view(); }
+inline auto const_view(const TImg &aImg)
 {
-	return img.const_view();
+	return aImg.const_view();
 }
 
 } // namespace iane::view

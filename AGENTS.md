@@ -23,7 +23,10 @@
 ## C++ style and documentation
 
 - Follow the formatting of the surrounding code. Use tabs for indentation and follow existing naming conventions, including snake_case for public functions and types. Keep changes focused and avoid unrelated reformatting.
+- Prefix type template parameters with `T` and non-type template parameters with `t`, for example `typename TMyType` and `int tMyValue`.
+- Prefix named function and lambda parameters with `a`, for example `aSource`. Prefix class instance members and nonpublic struct instance members with `m`, for example `mSize`. Public struct fields may keep unprefixed names.
 - Favor const-correct views and explicit ownership. Use C++20 concepts for public template requirements when they improve diagnostics. Reuse existing operations and types where they fit.
 - Keep device code compatible with the supported CUDA compiler. Use existing host and device annotation macros where needed. Avoid unnecessary allocations, data transfers and synchronization in algorithm code. Document these costs when they are part of an interface.
 - Write code documentation, comments and example documentation in English. Use Doxygen comments for public types, functions and concepts. Describe the contract and use tags such as `@param`, `@tparam`, `@return` and `@throws` when relevant.
 - Document constraints callers need to use an API correctly. Include ownership and view lifetime, supported layouts and backends, aliasing, boundary behavior, numerical guarantees and asynchronous completion where applicable. Use implementation comments to explain decisions that are hard to infer from the code.
+- Add a short English comment above internal helper types explaining their role in the implementation. Use ordinary comments for these helpers.

@@ -2,15 +2,23 @@
 
 Convert an RGB8 PNG to an 8-bit grayscale PNG of the same dimensions.
 The example uses Boost.Program_options for the CLI and stb for PNG I/O.
-The stb headers are included in `examples/common`. Compile
-`examples/common/io.cpp` once and link it into the example.
-The CUDA translation unit is outside the build while the planned IANE
-operations are being designed. Their header paths and types are provisional.
+The stb headers are included in `examples/common`.
+
+## Build
+
+```sh
+cmake -S . -B build
+cmake --build build --target color_to_bw
+```
+
+Examples are enabled by default. Use `-DIANE_BUILD_EXAMPLES=OFF` to
+disable them or `-DIANE_ENABLE_CUDA=OFF` to build without a CUDA toolchain.
+CMake needs to find Boost.Program_options when examples are enabled.
 
 ## Command
 
 ```sh
-color_to_bw input.png gray.png --backend cuda \
+./build/examples/color_to_bw input.png gray.png --backend cuda \
   --weights 0.2126,0.7152,0.0722 --warmup 2 --runs 10
 ```
 
@@ -20,8 +28,9 @@ must be positive and the warm-up count must be nonnegative.
 
 The weights apply to the stored R, G and B channel values in that order.
 Round the weighted sum to the nearest integer with ties toward positive
-infinity and clamp to [0, 255]. CPU and CUDA produce the same output bytes
-for the same input and weights.
+infinity and clamp to [0, 255]. The sum uses double precision with the
+same fused multiply-add order on CPU and CUDA. Weights must be finite
+and small enough that the weighted sum cannot overflow.
 
 ## IANE usage
 

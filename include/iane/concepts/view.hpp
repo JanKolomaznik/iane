@@ -12,19 +12,19 @@ namespace iane::concepts {
 /**
  * @brief Concept satisfied by any host-side image view.
  */
-template<typename T>
-concept HostView = requires { typename T::is_host_view_tag; };
+template<typename TElement>
+concept HostView = requires { typename TElement::is_host_view_tag; };
 
 /**
  * @brief Concept satisfied by any device-side image view.
  */
-template<typename T>
-concept DeviceView = requires { typename T::is_device_view_tag; };
+template<typename TElement>
+concept DeviceView = requires { typename TElement::is_device_view_tag; };
 
 /**
  * @brief Any image view, host or device.
  */
-template<typename T>
-concept AnyView = HostView<T> || DeviceView<T>;
+template<typename TElement>
+concept AnyView = HostView<TElement> || DeviceView<TElement>;
 
 } // namespace iane::concepts

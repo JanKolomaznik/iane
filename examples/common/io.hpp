@@ -18,9 +18,12 @@ struct rgb8_pixel {
 static_assert(sizeof(rgb8_pixel) == 3);
 
 /// Decode an RGB8 PNG into an owning IANE host image.
-iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& path);
+iane::host_image<rgb8_pixel, 2> read_rgb8(const std::string& aPath);
+
+/// Decode a gray8 PNG into an owning IANE host image.
+iane::host_image<std::uint8_t, 2> read_gray8(const std::string& aPath);
 
 /// Encode a packed IANE host image as an 8-bit grayscale PNG.
-void write_gray8(const std::string& path, const iane::host_image<std::uint8_t, 2>& input);
+void write_gray8(const std::string& aPath, const iane::host_image<std::uint8_t, 2>& aInput);
 
 } // namespace io

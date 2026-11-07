@@ -12,11 +12,11 @@ using namespace iane::math;
 // Helpers
 //------------------------------------------------------------
 
-template <typename T, int N>
-static bool approx_equal(const vector<T, N> &a, const vector<T, N> &b, T eps = static_cast<T>(1e-5))
+template <typename TElement, int tN>
+static bool approx_equal(const vector<TElement, tN> &aFirst, const vector<TElement, tN> &aSecond, TElement aEps = static_cast<TElement>(1e-5))
 {
-	for (int i = 0; i < N; ++i) {
-		if (std::abs(a[i] - b[i]) > eps) {
+	for (int i = 0; i < tN; ++i) {
+		if (std::abs(aFirst[i] - aSecond[i]) > aEps) {
 			return false;
 		}
 	}

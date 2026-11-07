@@ -14,27 +14,27 @@ namespace iane::math {
  *
  * Provides standard typedefs for diff, extents, and coordinates.
  */
-template<int N>
+template<int tN>
 struct dim_traits {
 	/// Signed integral vector - used as an offset vector.
-	using diff_t = vector<int, N>;
+	using diff_t = vector<int, tN>;
 
 	/// Unsigned integral vector - used for defining sizes.
-	using extents_t = vector<int, N>;
+	using extents_t = vector<int, tN>;
 
 	/// Signed integral coordinate vector.
-	using coord_t = vector<int, N>;
+	using coord_t = vector<int, tN>;
 
 	/// Floating-point coordinate vector.
-	using float_coord_t = vector<float, N>;
+	using float_coord_t = vector<float, tN>;
 
 	/// Helper to construct extents from up to 4 ints (extra args ignored).
 	IANE_DECL_HYBRID static constexpr extents_t
-	create_extents(int v0 = 0, int v1 = 0, int v2 = 0, int v3 = 0)
+	create_extents(int aV0 = 0, int aV1 = 0, int aV2 = 0, int aV3 = 0)
 	{
-		int vals[4] = { v0, v1, v2, v3 };
+		int vals[4] = { aV0, aV1, aV2, aV3 };
 		extents_t out;
-		for (int i = 0; i < N; ++i) {
+		for (int i = 0; i < tN; ++i) {
 			out[i] = vals[i];
 		}
 		return out;
@@ -50,12 +50,12 @@ struct dim_traits<1> {
 	using float_coord_t = float;
 
 	IANE_DECL_HYBRID static constexpr extents_t
-	create_extents(int v0 = 0, int v1 = 0, int v2 = 0, int v3 = 0)
+	create_extents(int aV0 = 0, int aV1 = 0, int aV2 = 0, int aV3 = 0)
 	{
-		(void)v1;
-		(void)v2;
-		(void)v3;
-		return v0;
+		(void)aV1;
+		(void)aV2;
+		(void)aV3;
+		return aV0;
 	}
 };
 

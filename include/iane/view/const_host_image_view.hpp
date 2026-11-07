@@ -5,35 +5,43 @@
 
 namespace iane {
 
-template<typename T, int Dim>
+template<typename TElement, int tDim>
 class const_host_image_view
 {
 public:
-	using value_type   = T;
-	using extents_t    = typename math::dim_traits<Dim>::extents_t;
-	using coord_t      = typename math::dim_traits<Dim>::coord_t;
-	static constexpr int dimension = Dim;
+	using value_type   = TElement;
+	using extents_t    = typename math::dim_traits<tDim>::extents_t;
+	using coord_t      = typename math::dim_traits<tDim>::coord_t;
+	static constexpr int dimension = tDim;
 
 	struct is_host_view_tag {};
 
-	const_host_image_view() : m_ptr(nullptr), m_size{}, m_strides{} {}
-	const_host_image_view(const T *ptr, extents_t size, extents_t strides)
-		: m_ptr(ptr), m_size(size), m_strides(strides) {}
+	const_host_image_view() : mPtr(nullptr), mSize{}, mStrides{} {}
+	const_host_image_view(const TElement *aPtr, extents_t aSize, extents_t aStrides)
+		: mPtr(aPtr), mSize(aSize), mStrides(aStrides) {}
 
-	extents_t dimensions() const { return m_size; }
-	extents_t strides() const    { return m_strides; }
-	const T *pointer() const     { return m_ptr; }
+	extents_t dimensions() const { return mSize; }
+	extents_t strides() const    { return mStrides; }
+	const TElement *pointer() const     { return mPtr; }
 
-	const T &operator[](const coord_t &c) const
+	const TElement &operator[](const coord_t &aC) const
 	{
-		auto offset = math::offset_in_strided_memory(m_strides, c);
-		return *reinterpret_cast<const T*>(reinterpret_cast<const char*>(m_ptr) + offset);
+		auto offset = math::offset_in_strided_memory(mStrides, aC);
+		return *reinterpret_cast<const TElement*>(reinterpret_cast<const char*>(mPtr) + offset);
+	}
+
+	/// Borrow a rectangular region. The caller must keep the region inside the view.
+	const_host_image_view subview(const coord_t& aCorner, const extents_t& aSize) const
+	{
+		const auto offset = math::offset_in_strided_memory(mStrides, aCorner);
+		return {reinterpret_cast<const TElement*>(reinterpret_cast<const char*>(mPtr) + offset),
+			aSize, mStrides};
 	}
 
 private:
-	const T *m_ptr;
-	extents_t m_size;
-	extents_t m_strides;
+	const TElement *mPtr;
+	extents_t mSize;
+	extents_t mStrides;
 };
 
 } // namespace iane

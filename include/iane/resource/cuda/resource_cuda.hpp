@@ -1,75 +1,49 @@
 #pragma once
-/**
- * @file resource_cuda.hpp
- * @brief CUDA device memory resource for iane::image.
- *
- * This header is intended to be used in CUDA-enabled builds.
- * It adapts the legacy memory_management<T,Dim>::device_memory_owner
- * interface into the new resource-based image design.
- */
 
-#include <iane/config.hpp>
-#include <iane/math/coord_traits.hpp>
-#include <iane/image/device_image_view.hpp>	// you will port/define this
-#include <iane/memory/memory.hpp>		// you will port: memory_management<T,Dim>
+#include <iane/image/image.hpp>
+#include <iane/execution/context.hpp>
+#include <iane/view/const_device_image_view.hpp>
+#include <iane/view/device_image_view.hpp>
+
+#if defined(__CUDACC__)
+#include <limits>
+#include <memory>
 
 namespace iane::resource {
 
-/**
- * @brief CUDA device memory resource for image<T,Dim,device_image_resource<T,Dim>>.
- *
- * This resource assumes an existing memory_management<T,Dim> with a nested
- * device_memory_owner type, compatible with the old CUGIP implementation:
- *
- *  memory_management<T,Dim>::device_memory_owner owner;
- *  - construct from extents_t
- *  - extents_t dimensions() const;
- *  - extents_t strides() const;
- *  - some pointer-like member (e.g. mData.get()) for raw device pointer.
- */
+/// CUDA storage for packed two-dimensional images.
 template<typename TElement, int tDim>
 struct device_image_resource {
-	using element_t		= TElement;
-	static constexpr int dim = tDim;
+	static_assert(tDim == 2, "CUDA image allocation currently supports two dimensions");
+	using extents_t = typename math::dim_traits<tDim>::extents_t;
+	using view_t = device_image_view<TElement, tDim>;
+	using const_view_t = const_device_image_view<TElement, tDim>;
 
-	using extents_t		= typename iane::math::dim_traits<tDim>::extents_t;
-	using view_t		= device_image_view<TElement, tDim>;
-	using const_view_t	= const_device_image_view<TElement, tDim>;
+	struct deleter {
+		void operator()(TElement* aPointer) const noexcept { cudaFree(aPointer); }
+	};
+	using owner_t = std::unique_ptr<TElement, deleter>;
 
-	using owner_t		= typename memory_management<TElement, tDim>::device_memory_owner;
-
-	// ---------------------------------------------------------------------
-	// Allocation
-	// ---------------------------------------------------------------------
-
-	static owner_t
-	allocate(const extents_t &size)
+	static owner_t allocate(const extents_t& aSize)
 	{
-		// Assumes device_memory_owner(extents_t) ctor exists (as in original CUGIP)
-		return owner_t(size);
+		if (aSize[0] < 0 || aSize[1] < 0 ||
+		    aSize[0] > std::numeric_limits<int>::max() / static_cast<int>(sizeof(TElement))) {
+			throw std::invalid_argument("Invalid CUDA image dimensions");
+		}
+		if (aSize[0] == 0 || aSize[1] == 0) {
+			return {};
+		}
+		TElement* data = nullptr;
+		iane::detail::check_cuda(cudaMalloc(&data,
+			static_cast<std::size_t>(aSize[0]) * sizeof(TElement) * aSize[1]), "CUDA image allocation");
+		return owner_t{data};
 	}
 
-	// ---------------------------------------------------------------------
-	// Pointer
-	// ---------------------------------------------------------------------
+	static TElement* pointer(const owner_t& aOwner) { return aOwner.get(); }
 
-	static IANE_DECL_HYBRID element_t *
-	pointer(owner_t &o)
+	static extents_t strides(const extents_t& aSize, const owner_t&)
 	{
-		// Adaptation point: we assume an mData member with get().
-		// When you port memory.hpp into IANE, you can refine this.
-		return o.mData.get();
-	}
-
-	// ---------------------------------------------------------------------
-	// Strides (query from owner)
-	// ---------------------------------------------------------------------
-
-	static IANE_DECL_HYBRID extents_t
-	strides(const extents_t &, const owner_t &o)
-	{
-		// Assumes device_memory_owner::strides() exists (as in original CUGIP)
-		return o.strides();
+		return extents_t{static_cast<int>(sizeof(TElement)), aSize[0] * static_cast<int>(sizeof(TElement))};
 	}
 };
 
@@ -77,10 +51,9 @@ struct device_image_resource {
 
 namespace iane {
 
-/**
- * @brief Convenient alias for device image.
- */
+/// Owning image allocated in CUDA device memory.
 template<typename TElement, int tDim = 2>
 using device_image = image<TElement, tDim, resource::device_image_resource<TElement, tDim>>;
 
 } // namespace iane
+#endif

@@ -5,38 +5,39 @@
 
 namespace iane {
 
-template<typename T, int Dim>
+template<typename TElement, int tDim>
 class const_device_image_view
 {
 public:
-	using value_type   = T;
-	using extents_t    = typename math::dim_traits<Dim>::extents_t;
-	using coord_t      = typename math::dim_traits<Dim>::coord_t;
+	using value_type   = TElement;
+	using extents_t    = typename math::dim_traits<tDim>::extents_t;
+	using coord_t      = typename math::dim_traits<tDim>::coord_t;
+	static constexpr int dimension = tDim;
 
 	struct is_device_view_tag {};
 
 	IANE_DECL_HOST
-	const_device_image_view() : m_ptr(nullptr), m_size{}, m_strides{} {}
+	const_device_image_view() : mPtr(nullptr), mSize{}, mStrides{} {}
 
 	IANE_DECL_HOST
-	const_device_image_view(const T *ptr, extents_t size, extents_t strides)
-		: m_ptr(ptr), m_size(size), m_strides(strides) {}
+	const_device_image_view(const TElement *aPtr, extents_t aSize, extents_t aStrides)
+		: mPtr(aPtr), mSize(aSize), mStrides(aStrides) {}
 
 	IANE_DECL_HYBRID
-	const T &operator[](const coord_t &c) const
+	const TElement &operator[](const coord_t &aC) const
 	{
-		auto offset = math::offset_in_strided_memory(m_strides, c);
-		return *reinterpret_cast<const T*>(reinterpret_cast<const char*>(m_ptr) + offset);
+		auto offset = math::offset_in_strided_memory(mStrides, aC);
+		return *reinterpret_cast<const TElement*>(reinterpret_cast<const char*>(mPtr) + offset);
 	}
 
-	IANE_DECL_HYBRID extents_t dimensions() const { return m_size; }
-	IANE_DECL_HYBRID extents_t strides() const { return m_strides; }
-	IANE_DECL_HYBRID const T *pointer() const { return m_ptr; }
+	IANE_DECL_HYBRID extents_t dimensions() const { return mSize; }
+	IANE_DECL_HYBRID extents_t strides() const { return mStrides; }
+	IANE_DECL_HYBRID const TElement *pointer() const { return mPtr; }
 
 private:
-	const T *m_ptr;
-	extents_t m_size;
-	extents_t m_strides;
+	const TElement *mPtr;
+	extents_t mSize;
+	extents_t mStrides;
 };
 
 } // namespace iane

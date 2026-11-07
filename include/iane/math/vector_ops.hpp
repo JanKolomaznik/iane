@@ -13,23 +13,23 @@ namespace iane::math {
 // Binary + and -
 //------------------------------------------------------------
 
-template<typename T, typename U, int N>
+template<typename TElement, typename TOther, int tN>
 IANE_DECL_HYBRID constexpr auto
-operator+(const vector<T, N> &a, const vector<U, N> &b)
+operator+(const vector<TElement, tN> &aFirst, const vector<TOther, tN> &aSecond)
 {
-	using R = std::common_type_t<T, U>;
-	vector<R, N> out(a);
-	out += b;
+	using R = std::common_type_t<TElement, TOther>;
+	vector<R, tN> out(aFirst);
+	out += aSecond;
 	return out;
 }
 
-template<typename T, typename U, int N>
+template<typename TElement, typename TOther, int tN>
 IANE_DECL_HYBRID constexpr auto
-operator-(const vector<T, N> &a, const vector<U, N> &b)
+operator-(const vector<TElement, tN> &aFirst, const vector<TOther, tN> &aSecond)
 {
-	using R = std::common_type_t<T, U>;
-	vector<R, N> out(a);
-	out -= b;
+	using R = std::common_type_t<TElement, TOther>;
+	vector<R, tN> out(aFirst);
+	out -= aSecond;
 	return out;
 }
 
@@ -37,37 +37,37 @@ operator-(const vector<T, N> &a, const vector<U, N> &b)
 // Scalar multiplication
 //------------------------------------------------------------
 
-template<typename S, typename T, int N>
+template<typename TScalar, typename TElement, int tN>
 IANE_DECL_HYBRID constexpr auto
-operator*(S scalar, const vector<T, N> &v)
+operator*(TScalar aScalar, const vector<TElement, tN> &aV)
 {
-	using R = decltype(scalar * v[0]);
-	vector<R, N> out;
-	for (int i = 0; i < N; ++i) {
-		out[i] = scalar * v[i];
+	using R = decltype(aScalar * aV[0]);
+	vector<R, tN> out;
+	for (int i = 0; i < tN; ++i) {
+		out[i] = aScalar * aV[i];
 	}
 	return out;
 }
 
-template<typename S, typename T, int N>
+template<typename TScalar, typename TElement, int tN>
 IANE_DECL_HYBRID constexpr auto
-operator*(const vector<T, N> &v, S scalar)
+operator*(const vector<TElement, tN> &aV, TScalar aScalar)
 {
-	return scalar * v;
+	return aScalar * aV;
 }
 
 //------------------------------------------------------------
 // Dot product
 //------------------------------------------------------------
 
-template<MathVector V1, MathVector V2>
+template<MathVector TFirstVector, MathVector TSecondVector>
 IANE_DECL_HYBRID constexpr auto
-dot(const V1 &a, const V2 &b)
+dot(const TFirstVector &aFirst, const TSecondVector &aSecond)
 {
-	static_assert(V1::dim == V2::dim, "dot(): dimension mismatch");
-	auto r = a[0] * b[0];
-	for (int i = 1; i < V1::dim; ++i) {
-		r += a[i] * b[i];
+	static_assert(TFirstVector::dim == TSecondVector::dim, "dot(): dimension mismatch");
+	auto r = aFirst[0] * aSecond[0];
+	for (int i = 1; i < TFirstVector::dim; ++i) {
+		r += aFirst[i] * aSecond[i];
 	}
 	return r;
 }
@@ -76,17 +76,17 @@ dot(const V1 &a, const V2 &b)
 // Cross product (3D only)
 //------------------------------------------------------------
 
-template<MathVector V1, MathVector V2>
+template<MathVector TFirstVector, MathVector TSecondVector>
 IANE_DECL_HYBRID constexpr auto
-cross(const V1 &a, const V2 &b)
+cross(const TFirstVector &aFirst, const TSecondVector &aSecond)
 {
-	static_assert(V1::dim == 3 && V2::dim == 3, "cross() requires 3D vectors");
-	using R = decltype(a[0] * b[0]);
+	static_assert(TFirstVector::dim == 3 && TSecondVector::dim == 3, "cross() requires 3D vectors");
+	using R = decltype(aFirst[0] * aSecond[0]);
 	vector<R, 3> out;
 
-	out[0] = a[1] * b[2] - a[2] * b[1];
-	out[1] = a[2] * b[0] - a[0] * b[2];
-	out[2] = a[0] * b[1] - a[1] * b[0];
+	out[0] = aFirst[1] * aSecond[2] - aFirst[2] * aSecond[1];
+	out[1] = aFirst[2] * aSecond[0] - aFirst[0] * aSecond[2];
+	out[2] = aFirst[0] * aSecond[1] - aFirst[1] * aSecond[0];
 	return out;
 }
 

@@ -53,32 +53,32 @@ public:
 	using const_view_t	= typename resource_t::const_view_t;
 
 public:
-	IANE_DECL_HOST image() = default;
+	image() = default;
 
 	/// Construct from extents
-	IANE_DECL_HOST explicit image(extents_t size)
-		: mSize(size)
-		, mOwner(resource_t::allocate(size))
-		, mStrides(resource_t::strides(size, mOwner))
+	IANE_DECL_HOST explicit image(extents_t aSize)
+		: mSize(aSize)
+		, mOwner(resource_t::allocate(aSize))
+		, mStrides(resource_t::strides(aSize, mOwner))
 	{}
 
 	/// Convenience: 1D image
-	IANE_DECL_HOST explicit image(int s0)
-		: image(extents_t{s0})
+	IANE_DECL_HOST explicit image(int aS0)
+		: image(extents_t{aS0})
 	{
 		static_assert(tDim == 1, "Image dimensionality mismatch for 1D ctor");
 	}
 
 	/// Convenience: 2D image
-	IANE_DECL_HOST image(int s0, int s1)
-		: image(extents_t{s0, s1})
+	IANE_DECL_HOST image(int aS0, int aS1)
+		: image(extents_t{aS0, aS1})
 	{
 		static_assert(tDim == 2, "Image dimensionality mismatch for 2D ctor");
 	}
 
 	/// Convenience: 3D image
-	IANE_DECL_HOST image(int s0, int s1, int s2)
-		: image(extents_t{s0, s1, s2})
+	IANE_DECL_HOST image(int aS0, int aS1, int aS2)
+		: image(extents_t{aS0, aS1, aS2})
 	{
 		static_assert(tDim == 3, "Image dimensionality mismatch for 3D ctor");
 	}
@@ -86,8 +86,8 @@ public:
 	IANE_DECL_HOST image(const image &) = delete;
 	IANE_DECL_HOST image &operator=(const image &) = delete;
 
-	IANE_DECL_HOST image(image &&) = default;
-	IANE_DECL_HOST image &operator=(image &&) = default;
+	image(image &&) = default;
+	image &operator=(image &&) = default;
 
 	// ---------------------------------------------------------------------
 	// Introspection
@@ -105,7 +105,7 @@ public:
 		return mStrides;
 	}
 
-	IANE_DECL_HYBRID value_type *
+	IANE_DECL_HOST value_type *
 	pointer() const
 	{
 		return resource_t::pointer(mOwner);
@@ -115,13 +115,13 @@ public:
 	// View access
 	// ---------------------------------------------------------------------
 
-	IANE_DECL_HYBRID view_t
+	IANE_DECL_HOST view_t
 	view() const
 	{
 		return view_t(pointer(), dimensions(), strides());
 	}
 
-	IANE_DECL_HYBRID const_view_t
+	IANE_DECL_HOST const_view_t
 	const_view() const
 	{
 		return const_view_t(pointer(), dimensions(), strides());
@@ -132,11 +132,11 @@ public:
 	// ---------------------------------------------------------------------
 
 	IANE_DECL_HOST void
-	resize(extents_t new_size)
+	resize(extents_t aNewSize)
 	{
-		mSize    = new_size;
-		mOwner   = resource_t::allocate(new_size);
-		mStrides = resource_t::strides(new_size, mOwner);
+		mSize    = aNewSize;
+		mOwner   = resource_t::allocate(aNewSize);
+		mStrides = resource_t::strides(aNewSize, mOwner);
 	}
 
 	IANE_DECL_HOST void
@@ -158,17 +158,17 @@ private:
 // -------------------------------------------------------------------------
 
 template<typename TImage>
-inline IANE_DECL_HYBRID auto
-view(const TImage &img) -> typename TImage::view_t
+inline IANE_DECL_HOST auto
+view(const TImage &aImg) -> typename TImage::view_t
 {
-	return img.view();
+	return aImg.view();
 }
 
 template<typename TImage>
-inline IANE_DECL_HYBRID auto
-const_view(const TImage &img) -> typename TImage::const_view_t
+inline IANE_DECL_HOST auto
+const_view(const TImage &aImg) -> typename TImage::const_view_t
 {
-	return img.const_view();
+	return aImg.const_view();
 }
 
 } // namespace iane

@@ -10,42 +10,42 @@ namespace iane::math {
 // Constructors
 //------------------------------------------------------------
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr vector<T, N>::vector()
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr vector<TElement, tN>::vector()
 {
-	for (int i = 0; i < N; ++i) {
-		elems[i] = T{};
+	for (int i = 0; i < tN; ++i) {
+		mElements[i] = TElement{};
 	}
 }
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr vector<T, N>::vector(T value, std::true_type)
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr vector<TElement, tN>::vector(TElement aValue, std::true_type)
 {
-	for (int i = 0; i < N; ++i) {
-		elems[i] = value;
+	for (int i = 0; i < tN; ++i) {
+		mElements[i] = aValue;
 	}
 }
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr vector<T, N>::vector(std::initializer_list<T> init)
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr vector<TElement, tN>::vector(std::initializer_list<TElement> aInit)
 {
 	int i = 0;
-	for (auto &v : init) {
-		if (i < N) {
-			elems[i++] = v;
+	for (auto &v : aInit) {
+		if (i < tN) {
+			mElements[i++] = v;
 		}
 	}
-	for (; i < N; ++i) {
-		elems[i] = T{};
+	for (; i < tN; ++i) {
+		mElements[i] = TElement{};
 	}
 }
 
-template<typename T, int N>
-template<typename U>
-IANE_DECL_HYBRID constexpr vector<T, N>::vector(const vector<U, N> &other)
+template<typename TElement, int tN>
+template<typename TOther>
+IANE_DECL_HYBRID constexpr vector<TElement, tN>::vector(const vector<TOther, tN> &aOther)
 {
-	for (int i = 0; i < N; ++i) {
-		elems[i] = static_cast<T>(other.elems[i]);
+	for (int i = 0; i < tN; ++i) {
+		mElements[i] = static_cast<TElement>(aOther.mElements[i]);
 	}
 }
 
@@ -53,67 +53,67 @@ IANE_DECL_HYBRID constexpr vector<T, N>::vector(const vector<U, N> &other)
 // Element access
 //------------------------------------------------------------
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr T &vector<T, N>::operator[](int idx)
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr TElement &vector<TElement, tN>::operator[](int aIdx)
 {
-	return elems[idx];
+	return mElements[aIdx];
 }
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr const T &vector<T, N>::operator[](int idx) const
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr const TElement &vector<TElement, tN>::operator[](int aIdx) const
 {
-	return elems[idx];
+	return mElements[aIdx];
 }
 
-template<typename T, int N>
-template<int I>
-IANE_DECL_HYBRID constexpr T &vector<T, N>::get()
+template<typename TElement, int tN>
+template<int tI>
+IANE_DECL_HYBRID constexpr TElement &vector<TElement, tN>::get()
 {
-	static_assert(I >= 0 && I < N, "vector: index out of range");
-	return elems[I];
+	static_assert(tI >= 0 && tI < tN, "vector: index out of range");
+	return mElements[tI];
 }
 
-template<typename T, int N>
-template<int I>
-IANE_DECL_HYBRID constexpr const T &vector<T, N>::get() const
+template<typename TElement, int tN>
+template<int tI>
+IANE_DECL_HYBRID constexpr const TElement &vector<TElement, tN>::get() const
 {
-	static_assert(I >= 0 && I < N, "vector: index out of range");
-	return elems[I];
+	static_assert(tI >= 0 && tI < tN, "vector: index out of range");
+	return mElements[tI];
 }
 
 //------------------------------------------------------------
 // Arithmetic ops
 //------------------------------------------------------------
 
-template<typename T, int N>
-template<typename U>
-IANE_DECL_HYBRID constexpr vector<T, N> &
-vector<T, N>::operator+=(const vector<U, N> &rhs)
+template<typename TElement, int tN>
+template<typename TOther>
+IANE_DECL_HYBRID constexpr vector<TElement, tN> &
+vector<TElement, tN>::operator+=(const vector<TOther, tN> &aRhs)
 {
-	for (int i = 0; i < N; ++i) {
-		elems[i] += rhs[i];
+	for (int i = 0; i < tN; ++i) {
+		mElements[i] += aRhs[i];
 	}
 	return *this;
 }
 
-template<typename T, int N>
-template<typename U>
-IANE_DECL_HYBRID constexpr vector<T, N> &
-vector<T, N>::operator-=(const vector<U, N> &rhs)
+template<typename TElement, int tN>
+template<typename TOther>
+IANE_DECL_HYBRID constexpr vector<TElement, tN> &
+vector<TElement, tN>::operator-=(const vector<TOther, tN> &aRhs)
 {
-	for (int i = 0; i < N; ++i) {
-		elems[i] -= rhs[i];
+	for (int i = 0; i < tN; ++i) {
+		mElements[i] -= aRhs[i];
 	}
 	return *this;
 }
 
-template<typename T, int N>
-IANE_DECL_HYBRID constexpr vector<T, N>
-vector<T, N>::operator-() const
+template<typename TElement, int tN>
+IANE_DECL_HYBRID constexpr vector<TElement, tN>
+vector<TElement, tN>::operator-() const
 {
-	vector<T, N> out;
-	for (int i = 0; i < N; ++i) {
-		out[i] = -elems[i];
+	vector<TElement, tN> out;
+	for (int i = 0; i < tN; ++i) {
+		out[i] = -mElements[i];
 	}
 	return out;
 }

@@ -23,11 +23,11 @@ inline void format_helper(boost::format &) {}
 /**
  * @brief Recursively expand boost::format arguments.
  */
-template<typename T, typename... Args>
-inline void format_helper(boost::format &fmt, T &&value, Args &&...args)
+template<typename TElement, typename... TArgs>
+inline void format_helper(boost::format &aFmt, TElement &&aValue, TArgs &&...aArgs)
 {
-	fmt % std::forward<T>(value);
-	format_helper(fmt, std::forward<Args>(args)...);
+	aFmt % std::forward<TElement>(aValue);
+	format_helper(aFmt, std::forward<TArgs>(aArgs)...);
 }
 
 } // namespace iane::detail

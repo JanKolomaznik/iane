@@ -117,10 +117,10 @@ inline constexpr cuda_error_entry cuda_error_table[] = {
  * @brief Lookup: name → string (linear scan; table is tiny).
  */
 inline constexpr std::string_view
-get_error_name(cudaError_t err)
+get_error_name(cudaError_t aErr)
 {
 	for (const auto &entry : cuda_error_table) {
-		if (entry.code == err) {
+		if (entry.code == aErr) {
 			return entry.name;
 		}
 	}

@@ -20,11 +20,11 @@ namespace iane::math {
 /**
  * @brief Concept for vector-like types usable with IANE utilities.
  */
-template<typename T>
-concept MathVector = requires(T v) {
-	typename T::value_type;
-	{ T::dim } -> std::convertible_to<int>;
-	{ v[0] };
+template<typename TElement>
+concept MathVector = requires(TElement aV) {
+	typename TElement::value_type;
+	{ TElement::dim } -> std::convertible_to<int>;
+	{ aV[0] };
 };
 
 /**
@@ -32,17 +32,17 @@ concept MathVector = requires(T v) {
  *
  * Lightweight POD-like fixed-size vector usable on host and device.
  *
- * @tparam T Element type
- * @tparam N Dimension (positive integer)
+ * @tparam TElement Element type
+ * @tparam tN Dimension (positive integer)
  */
-template<typename T, int N>
+template<typename TElement, int tN>
 class vector {
 public:
-	using value_type = T;
-	static constexpr int dim = N;
+	using value_type = TElement;
+	static constexpr int dim = tN;
 
 	/// Storage
-	T elems[N];
+	TElement mElements[tN];
 
 	/// @name Constructors
 	/// @{
@@ -50,41 +50,41 @@ public:
 	/// Default initializes all components to zero.
 	IANE_DECL_HYBRID constexpr vector();
 
-	/// Fill constructor: sets all elements to `value`.
-	IANE_DECL_HYBRID constexpr vector(T value, std::true_type);
+	/// Fill constructor: sets all elements to `aValue`.
+	IANE_DECL_HYBRID constexpr vector(TElement aValue, std::true_type);
 
 	/// Construct from a list of explicit coordinates.
-	IANE_DECL_HYBRID explicit constexpr vector(std::initializer_list<T> init);
+	IANE_DECL_HYBRID explicit constexpr vector(std::initializer_list<TElement> aInit);
 
 	/// Construct from another vector of convertible type.
-	template<typename U>
-	IANE_DECL_HYBRID constexpr vector(const vector<U, N> &other);
+	template<typename TOther>
+	IANE_DECL_HYBRID constexpr vector(const vector<TOther, tN> &aOther);
 
 	/// @}
 
 	/// @name Element Access
 	/// @{
 
-	IANE_DECL_HYBRID constexpr T &operator[](int idx);
-	IANE_DECL_HYBRID constexpr const T &operator[](int idx) const;
+	IANE_DECL_HYBRID constexpr TElement &operator[](int aIdx);
+	IANE_DECL_HYBRID constexpr const TElement &operator[](int aIdx) const;
 
 	/// Access a compile-time index.
-	template<int I>
-	IANE_DECL_HYBRID constexpr T &get();
+	template<int tI>
+	IANE_DECL_HYBRID constexpr TElement &get();
 
-	template<int I>
-	IANE_DECL_HYBRID constexpr const T &get() const;
+	template<int tI>
+	IANE_DECL_HYBRID constexpr const TElement &get() const;
 
 	/// @}
 
 	/// @name Arithmetic assignment
 	/// @{
 
-	template<typename U>
-	IANE_DECL_HYBRID constexpr vector &operator+=(const vector<U, N> &rhs);
+	template<typename TOther>
+	IANE_DECL_HYBRID constexpr vector &operator+=(const vector<TOther, tN> &aRhs);
 
-	template<typename U>
-	IANE_DECL_HYBRID constexpr vector &operator-=(const vector<U, N> &rhs);
+	template<typename TOther>
+	IANE_DECL_HYBRID constexpr vector &operator-=(const vector<TOther, tN> &aRhs);
 
 	/// Unary minus
 	IANE_DECL_HYBRID constexpr vector operator-() const;
