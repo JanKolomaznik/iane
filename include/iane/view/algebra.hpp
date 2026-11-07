@@ -1,0 +1,99 @@
+#pragma once
+
+#include <iane/view/procedural.hpp>
+
+namespace iane {
+namespace detail {
+
+template<class TView>
+concept algebra_view = procedural_domain<TView> && concepts::ReadableView<TView>;
+
+template<class TLeft, class TRight>
+concept algebra_operands =
+	(algebra_view<TLeft> && algebra_view<TRight> &&
+		concepts::MatchingViewRank<TLeft, TRight> && concepts::SameViewBackend<TLeft, TRight>) ||
+	(algebra_view<TLeft> && std::is_arithmetic_v<TRight>) ||
+	(std::is_arithmetic_v<TLeft> && algebra_view<TRight>);
+
+template<class TOperand, algebra_view TDomain>
+auto broadcast_operand(TOperand aOperand, const TDomain& aDomain)
+{
+	if constexpr (algebra_view<TOperand>) {
+		return aOperand;
+	} else {
+		return constant_view(aDomain, aOperand);
+	}
+}
+
+template<class TLeft, class TRight, class TFunction>
+auto arithmetic_view(TLeft aLeft, TRight aRight, TFunction aFunction)
+{
+	if constexpr (algebra_view<TLeft>) {
+		return zip_view(aLeft, broadcast_operand(aRight, aLeft), aFunction);
+	} else {
+		return zip_view(constant_view(aRight, aLeft), aRight, aFunction);
+	}
+}
+
+// Apply unary negation with the pixel type's C++ promotion rules.
+struct negate_view_pixel {
+	template<class TValue>
+	IANE_DECL_HYBRID auto operator()(const TValue& aValue) const -> decltype(-aValue)
+	{
+		return -aValue;
+	}
+};
+
+} // namespace detail
+
+/// Lazily negate each pixel. See map_view for storage and lifetime requirements.
+template<detail::algebra_view TView>
+auto operator-(TView aView)
+{
+	return map_view(aView, detail::negate_view_pixel{});
+}
+
+// Define each operator together with its device-callable pixel operation.
+#define IANE_DEFINE_VIEW_OPERATOR(tOperator, TOperation) \
+	namespace detail { \
+	/* Apply the corresponding C++ operator to two pixels. */ \
+	struct TOperation { \
+		template<class TLeft, class TRight> \
+		IANE_DECL_HYBRID auto operator()(const TLeft& aLeft, const TRight& aRight) const \
+			-> decltype(aLeft tOperator aRight) \
+		{ \
+			return aLeft tOperator aRight; \
+		} \
+	}; \
+	} \
+	template<class TLeft, class TRight> \
+	requires detail::algebra_operands<TLeft, TRight> \
+	auto operator tOperator(TLeft aLeft, TRight aRight) \
+	{ \
+		return detail::arithmetic_view(aLeft, aRight, detail::TOperation{}); \
+	}
+
+/**
+ * @name Pointwise view arithmetic
+ * Combine two readable views or broadcast an arithmetic scalar on either side.
+ * Results are evaluated lazily using the pixel's C++ arithmetic operators.
+ * See zip_view for layout, lifetime, backend and shape requirements.
+ * @{
+ */
+IANE_DEFINE_VIEW_OPERATOR(+, add_view_pixels)
+IANE_DEFINE_VIEW_OPERATOR(-, subtract_view_pixels)
+IANE_DEFINE_VIEW_OPERATOR(*, multiply_view_pixels)
+IANE_DEFINE_VIEW_OPERATOR(/, divide_view_pixels)
+/// @}
+
+#undef IANE_DEFINE_VIEW_OPERATOR
+
+namespace detail {
+// Make operators discoverable by ADL even when both operands are procedural.
+using iane::operator+;
+using iane::operator-;
+using iane::operator*;
+using iane::operator/;
+} // namespace detail
+
+} // namespace iane

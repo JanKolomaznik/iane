@@ -34,6 +34,15 @@ public:
 	IANE_DECL_HYBRID extents_t strides() const { return mStrides; }
 	IANE_DECL_HYBRID const TElement *pointer() const { return mPtr; }
 
+	/// Borrow a rectangular region. The caller must keep the region inside the view.
+	IANE_DECL_HOST
+	const_device_image_view subview(const coord_t& aCorner, const extents_t& aSize) const
+	{
+		const auto offset = math::offset_in_strided_memory(mStrides, aCorner);
+		return {reinterpret_cast<const TElement*>(reinterpret_cast<const char*>(mPtr) + offset),
+			aSize, mStrides};
+	}
+
 private:
 	const TElement *mPtr;
 	extents_t mSize;

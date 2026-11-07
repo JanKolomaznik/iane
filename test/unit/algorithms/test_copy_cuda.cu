@@ -2,6 +2,7 @@
 #include "cuda_test_main.hpp"
 
 #include "copy_cases.hpp"
+#include <iane/view/make_view.hpp>
 
 BOOST_AUTO_TEST_CASE(images_2d) { meta_tests::check_copy<2>(iane::backend::cuda); }
 BOOST_AUTO_TEST_CASE(images_3d) { meta_tests::check_copy<3>(iane::backend::cuda); }
@@ -33,4 +34,35 @@ BOOST_AUTO_TEST_CASE(strided_4d_round_trip)
 		}
 		BOOST_TEST(aValue == (inside ? input[aPosition] : -1));
 	});
+}
+
+BOOST_AUTO_TEST_CASE(packed_device_buffer_and_const_crop)
+{
+	using coord_t = iane::math::vec2i;
+	const coord_t size{3, 2};
+	iane::device_image<int, 2> storage(size);
+	const int pixels[]{1, 2, 3, 4, 5, 6};
+	auto source = iane::host::make_const_view<int, 2>(pixels, size);
+	auto writable = iane::device::make_view<int, 2>(storage.pointer(), size);
+	iane::copy(source, writable).wait();
+
+	const coord_t crop_size{2, 2};
+	const auto readable = iane::device::make_const_view<int, 2>(storage.pointer(), size);
+	int result[4]{};
+	auto output = iane::host::make_view<int, 2>(result, crop_size);
+	iane::copy(readable.subview(coord_t{1, 0}, crop_size), output).wait();
+	const int expected[]{2, 3, 5, 6};
+	for (int i = 0; i < 4; ++i) {
+		BOOST_TEST(result[i] == expected[i]);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(procedural_copy)
+{
+	meta_tests::check_procedural_copy(iane::backend::cuda);
+}
+
+BOOST_AUTO_TEST_CASE(view_algebra)
+{
+	meta_tests::check_view_algebra(iane::backend::cuda);
 }

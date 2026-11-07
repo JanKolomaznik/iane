@@ -12,3 +12,7 @@ Generate the HTML reference with Doxygen 1.15 or newer and Graphviz (`dot` on PA
 Open `docs/documentation/html/index.html`. The **Topics** section includes the
 IANE concepts and their requirements. The reference also includes SVG
 graphs for classes, header dependencies and directories.
+
+## Guides
+
+- [Procedural views](docs/procedural_views.md)

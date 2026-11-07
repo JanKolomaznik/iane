@@ -1,5 +1,6 @@
 #pragma once
 #include <iane/concepts/view.hpp>
+#include <iane/view/algebra.hpp>
 
 namespace iane::view {
 

@@ -51,22 +51,27 @@ public:
 	}
 
 	/**
-	 * @brief Slice along dimension I.
+	 * @brief Fix one axis and borrow the remaining dimensions in their original order.
+	 * @tparam tI Axis to remove.
+	 * @param aIndex In-bounds coordinate on that axis.
+	 * @return View sharing the original storage and remaining byte strides.
 	 */
 	template<int tI>
-	host_image_view<TElement, tDim-1> slice(int aIndex) const
+	requires (tDim > 1 && tI >= 0 && tI < tDim)
+	host_image_view<TElement, tDim - 1> slice(int aIndex) const
 	{
-		static_assert(tI >= 0 && tI < tDim);
-		typename math::dim_traits<tDim>::coord_t c{};
-		c[tI] = aIndex;
-
-		auto offset = math::offset_in_strided_memory(mStrides, c);
-
-		return {
-			reinterpret_cast<TElement*>(reinterpret_cast<char*>(mPtr) + offset),
-			remove_dimension(mSize, tI),
-			remove_dimension(mStrides, tI)
-		};
+		using slice_t = host_image_view<TElement, tDim - 1>;
+		typename slice_t::extents_t size{};
+		typename slice_t::extents_t strides{};
+		for (int i = 0, j = 0; i < tDim; ++i) {
+			if (i != tI) {
+				math::detail::axis(size, j) = mSize[i];
+				math::detail::axis(strides, j) = mStrides[i];
+				++j;
+			}
+		}
+		const auto offset = static_cast<std::ptrdiff_t>(mStrides[tI]) * aIndex;
+		return {reinterpret_cast<TElement*>(reinterpret_cast<char*>(mPtr) + offset), size, strides};
 	}
 
 private:

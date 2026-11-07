@@ -4,6 +4,7 @@
 #include <iane/image/image.hpp>
 #include <iane/resource/host/resource_host.hpp>
 #include <iane/math/vector.hpp>	// for dim_traits and simple_vector utilities
+#include <iane/view/make_view.hpp>
 
 using namespace iane;
 
@@ -92,4 +93,51 @@ BOOST_AUTO_TEST_CASE(resize_reallocates_memory)
 	BOOST_CHECK(old_ptr != new_ptr);	// should be different memory
 	BOOST_TEST(img.dimensions()[0] == 4);
 	BOOST_TEST(img.dimensions()[1] == 4);
+}
+
+BOOST_AUTO_TEST_CASE(packed_buffer_views)
+{
+	int pixels[]{1, 2, 3, 4, 5, 6};
+	auto writable = host::make_view<int, 2>(pixels, coord2{3, 2});
+	auto readable = host::make_const_view<int, 2>(pixels, coord2{3, 2});
+	const coord2 last{2, 1};
+	BOOST_TEST(readable[last] == 6);
+	writable[last] = 19;
+	BOOST_TEST(pixels[5] == 19);
+	const auto line = host::make_const_view<int, 1>(pixels, 6);
+	BOOST_TEST(line[4] == 5);
+}
+
+BOOST_AUTO_TEST_CASE(crop_and_slice_preserve_parent_strides)
+{
+	int pixels[]{1, 2, 3, 4, 5, 6};
+	auto parent = host::make_view<int, 2>(pixels, coord2{3, 2});
+	const coord2 corner{1, 0};
+	const coord2 size{2, 2};
+	auto crop = parent.subview(corner, size);
+	auto const_crop = host::make_const_view<int, 2>(pixels, coord2{3, 2}).subview(corner, size);
+	const coord2 second_row{0, 1};
+	BOOST_TEST(const_crop[second_row] == 5);
+	auto column = crop.slice<0>(0);
+	auto row = crop.slice<1>(1);
+	BOOST_TEST(column.dimensions() == 2);
+	BOOST_TEST(column.strides() == 3 * sizeof(int));
+	BOOST_TEST(column[0] == 2);
+	BOOST_TEST(column[1] == 5);
+	BOOST_TEST(row[1] == 6);
+	row[0] = 23;
+	BOOST_TEST(column[1] == 23);
+}
+
+BOOST_AUTO_TEST_CASE(slice_3d_preserves_axis_order)
+{
+	int pixels[24]{};
+	using coord3 = math::dim_traits<3>::coord_t;
+	auto volume = host::make_view<int, 3>(pixels, coord3{2, 3, 4});
+	auto slice = volume.slice<1>(1);
+	BOOST_TEST(slice.dimensions()[0] == 2);
+	BOOST_TEST(slice.dimensions()[1] == 4);
+	const coord2 position{1, 3};
+	slice[position] = 37;
+	BOOST_TEST(pixels[21] == 37);
 }
