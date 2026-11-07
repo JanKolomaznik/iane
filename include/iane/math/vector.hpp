@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <type_traits>
+#include <concepts>
 
 #include <iane/config.hpp> // for IANE_DECL_HOST / _DEVICE / _HYBRID
 

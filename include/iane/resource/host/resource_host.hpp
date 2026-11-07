@@ -54,7 +54,7 @@ struct host_image_resource {
 	// ---------------------------------------------------------------------
 
 	static IANE_DECL_HYBRID element_t *
-	pointer(owner_t &o)
+	pointer(const owner_t &o)
 	{
 		return o.ptr.get();
 	}

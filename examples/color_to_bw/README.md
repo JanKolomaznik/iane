@@ -1,0 +1,54 @@
+# color_to_bw
+
+Convert an RGB8 PNG to an 8-bit grayscale PNG of the same dimensions.
+The example uses Boost.Program_options for the CLI and stb for PNG I/O.
+The stb headers are included in `examples/common`. Compile
+`examples/common/io.cpp` once and link it into the example.
+The CUDA translation unit is outside the build while the planned IANE
+operations are being designed. Their header paths and types are provisional.
+
+## Command
+
+```sh
+color_to_bw input.png gray.png --backend cuda \
+  --weights 0.2126,0.7152,0.0722 --warmup 2 --runs 10
+```
+
+Use `--backend cpu` to run the same conversion in RAM. The CLI provides
+`--help` and accepts `--device` for CUDA device selection. The run count
+must be positive and the warm-up count must be nonnegative.
+
+The weights apply to the stored R, G and B channel values in that order.
+Round the weighted sum to the nearest integer with ties toward positive
+infinity and clamp to [0, 255]. CPU and CUDA produce the same output bytes
+for the same input and weights.
+
+## IANE usage
+
+`iane::run_on` is a public utility. It takes host input and output views
+and calls the same generic function with views for the selected backend.
+For CPU it uses the host views directly. For CUDA it prepares the execution
+context and device images, uploads the input once and downloads the last
+result. The host output is ready when it returns.
+
+`iane::grayscale` describes a readable view. `iane::copy` materializes
+that view into the output in one pass, using the view types to select
+the backend at compile time. The execution context supplies the queue
+for that operation. The callback returns the completion object so
+`run_on` can wait for each invocation.
+
+## Timing
+
+`run_on` reports host wall-clock times in milliseconds. The header includes
+the backend, CUDA device when applicable, image size and run counts.
+
+| Field | Measurement |
+| --- | --- |
+| `setup_ms` | CUDA execution context setup and device image allocation. |
+| `upload_ms` | One transfer of the input to CUDA, through completion. |
+| `compute_ms` | Minimum, median and maximum across measured invocations. Each sample runs from callback invocation through completion. |
+| `download_ms` | One transfer of the final result to RAM, through completion. |
+
+CPU reports only compute timing. Warm-up invocations also wait for
+completion and are excluded from the statistics. PNG decoding and writing
+happen outside `run_on` and its timing.
