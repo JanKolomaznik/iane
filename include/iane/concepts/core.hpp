@@ -18,6 +18,19 @@ namespace iane::concepts {
  * @ref iane::concepts::TransferViews "TransferViews" when the operation moves bytes across memory spaces.
  * Constrain neighborhood callbacks with @ref iane::concepts::Locator "Locator" and describe pixel
  * arithmetic separately with an element concept.
+ *
+ * @dot "View requirements. Each arrow points to a required concept."
+ * digraph ViewRequirements {
+ *   graph [rankdir=TB, bgcolor=transparent];
+ *   node [shape=box, style="rounded,filled", fillcolor="#eef4ff", color="#587096", fontname="sans-serif"];
+ *   edge [color="#587096"];
+ *
+ *   TransformViews -> {ReadableView WritableView MatchingViewRank SameViewBackend};
+ *   TransferViews -> {MemoryView MatchingViewRank};
+ *   MemoryView -> ReadableView;
+ *   {ReadableView WritableView MatchingViewRank} -> ViewDomain;
+ * }
+ * @enddot
  */
 
 /**

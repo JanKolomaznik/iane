@@ -1,6 +1,11 @@
 #pragma once
 
 /**
+ * @defgroup iane_resource_cuda CUDA resources
+ * @brief CUDA execution support, resource configuration, and diagnostics.
+ */
+
+/**
  * @file cuda.hpp
  * @brief Unified include header for CUDA-related configuration.
  *

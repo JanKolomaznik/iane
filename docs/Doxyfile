@@ -1,0 +1,55 @@
+# Run from the docs directory with: doxygen Doxyfile
+PROJECT_NAME           = IANE
+PROJECT_BRIEF          = "Image Algebra for N-dimensional Evaluation"
+OUTPUT_DIRECTORY       = documentation
+CREATE_SUBDIRS         = NO
+
+INPUT                  = ../README.md ../include/iane
+USE_MDFILE_AS_MAINPAGE  = ../README.md
+FILE_PATTERNS          = *.hpp *.tcc *.md
+RECURSIVE              = YES
+STRIP_FROM_PATH        = ..
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+INTERNAL_DOCS          = NO
+SOURCE_BROWSER         = YES
+
+# Parse public declarations and CUDA-only overloads without a CUDA toolchain.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+INCLUDE_PATH           = ../include
+PREDEFINED             = __CUDACC__ \
+                         IANE_DECL_HOST= \
+                         IANE_DECL_HYBRID= \
+                         IANE_CUDA_HOST= \
+                         IANE_CUDA_DEVICE= \
+                         IANE_CUDA_HYBRID= \
+                         IANE_CUDA_GLOBAL= \
+                         IANE_CUDA_HD_WARNING_DISABLE= \
+                         IANE_FORCE_INLINE=
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+# Graphviz provides navigable SVG graphs of public types and headers.
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = NO
+DIRECTORY_GRAPH        = YES
+DIR_GRAPH_MAX_DEPTH    = 1
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DOT_GRAPH_MAX_NODES    = 24
+MAX_DOT_GRAPH_DEPTH    = 2
+
+# Report broken documentation without listing every undocumented declaration.
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
