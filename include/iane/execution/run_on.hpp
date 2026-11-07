@@ -83,25 +83,9 @@ struct stream_owner {
 };
 #endif
 
-} // namespace detail
-
-/**
- * @brief Run an operation on host views or CUDA copies of those views.
- * @param aOptions Backend, device and measurement settings.
- * @param aSources Tuple of readable host memory views, optionally empty for generators.
- * @param aDestination Writable host memory view.
- * @param aOperation Callable taking the unpacked input views, output view and execution
- * context. It returns a result supporting wait() and must produce the output
- * on each invocation.
- * @throws std::invalid_argument If options are invalid.
- * @throws std::runtime_error If CUDA is unavailable or a CUDA operation fails.
- *
- * Logs host wall-clock timings to standard output. The destination is ready
- * on return. The CUDA path stages input once and downloads the final output.
- */
-template<concepts::HostView TDst, class TOperation, concepts::HostView... TSrc>
+template<bool tPrepare, concepts::HostView TDst, class TOperation, concepts::HostView... TSrc>
 requires (((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
-void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDestination, TOperation&& aOperation)
+void run_on_impl(const run_options& aOptions, std::tuple<TSrc...>& aSources, TDst aDestination, TOperation&& aOperation)
 {
 	if (aOptions.warmup < 0 || aOptions.runs <= 0 || aOptions.device < 0) {
 		throw std::invalid_argument("Invalid run options");
@@ -127,13 +111,29 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 	}
 	std::cout << " warmup=" << aOptions.warmup << " runs=" << aOptions.runs << '\n';
 
+	const auto run = [&](auto& aExecution, auto aInvoke) {
+		if constexpr (tPrepare) {
+			const auto start = std::chrono::steady_clock::now();
+			auto operation = aInvoke();
+			aExecution.wait();
+			const auto elapsed = std::chrono::duration<double, std::milli>(
+				std::chrono::steady_clock::now() - start).count();
+			std::cout << "prepare_ms=" << elapsed << '\n';
+			detail::run_samples(aOptions, [&] { operation().wait(); });
+		} else {
+			detail::run_samples(aOptions, [&] {
+				aInvoke().wait();
+			});
+		}
+	};
+
 	if (!use_cuda) {
 		cpu_execution execution;
-		detail::run_samples(aOptions, [&] {
-			std::apply([&](const auto&... aInput) {
-				aOperation(aInput..., aDestination, execution).wait();
-			}, aSources);
-		});
+		std::apply([&](const auto&... aInput) {
+			run(execution, [&]() -> decltype(auto) {
+				return aOperation(aInput..., aDestination, execution);
+			});
+		}, aSources);
 		return;
 	}
 
@@ -163,11 +163,11 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 		std::cout << " upload_ms=" << upload;
 	}
 	std::cout << '\n';
-	detail::run_samples(aOptions, [&] {
-		std::apply([&](const auto&... aInput) {
-			aOperation(aInput.const_view()..., output.view(), execution).wait();
-		}, inputs);
-	});
+	std::apply([&](const auto&... aInput) {
+		run(execution, [&]() -> decltype(auto) {
+			return aOperation(aInput.const_view()..., output.view(), execution);
+		});
+	}, inputs);
 	const auto download = detail::elapsed_ms([&] {
 		copy(output.const_view(), aDestination, execution).wait();
 	});
@@ -175,6 +175,49 @@ void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDes
 #else
 	throw std::runtime_error("CUDA execution requires compilation with a CUDA compiler");
 #endif
+}
+
+} // namespace detail
+
+/**
+ * @brief Run an operation on host views or CUDA copies of those views.
+ * @param aOptions Backend, device and measurement settings.
+ * @param aSources Tuple of readable host memory views, optionally empty for generators.
+ * @param aDestination Writable host memory view.
+ * @param aOperation Callable taking the unpacked input views, output view and execution
+ * context. It returns a result supporting wait() and must produce the output
+ * on each invocation.
+ * @throws std::invalid_argument If options are invalid.
+ * @throws std::runtime_error If CUDA is unavailable or a CUDA operation fails.
+ *
+ * Logs host wall-clock timings to standard output. The destination is ready
+ * on return. The CUDA path stages input once and downloads the final output.
+ */
+template<concepts::HostView TDst, class TOperation, concepts::HostView... TSrc>
+requires (((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
+void run_on(const run_options& aOptions, std::tuple<TSrc...> aSources, TDst aDestination, TOperation&& aOperation)
+{
+	detail::run_on_impl<false>(aOptions, aSources, aDestination, std::forward<TOperation>(aOperation));
+}
+
+/**
+ * @brief Prepare a reusable operation after backend setup and input staging.
+ * @param aPrepare Factory taking the backend views and execution context.
+ * It returns a nullary callable that produces the complete output and returns
+ * a completion handle each time. Factory work must use the supplied context.
+ * The returned callable should retain view handles by value.
+ *
+ * The factory runs once. Its elapsed time through completion is logged
+ * as prepare_ms, separately from warm-up, compute samples and transfers.
+ * The callable is destroyed before the output download. See run_on for
+ * backend selection and the other arguments.
+ */
+template<concepts::HostView TDst, class TPrepare, concepts::HostView... TSrc>
+requires (((TSrc::dimension > 0) && ...) && TDst::dimension > 0)
+void run_prepared_on(const run_options& aOptions, std::tuple<TSrc...> aSources,
+	TDst aDestination, TPrepare&& aPrepare)
+{
+	detail::run_on_impl<true>(aOptions, aSources, aDestination, std::forward<TPrepare>(aPrepare));
 }
 
 /// Run a single-input operation. See the tuple overload for execution and timing.

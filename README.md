@@ -17,3 +17,9 @@ graphs for classes, header dependencies and directories.
 
 - [Procedural views](docs/procedural_views.md)
 - [CUDA texture images](docs/cuda_texture_images.md)
+- [Prepared algorithms and shared scratch](docs/prepared_algorithms.md)
+
+## Deconvolution examples
+
+- [Wiener filtering](examples/wiener/README.md)
+- [Richardson–Lucy deconvolution](examples/rl_deconvolution/README.md)

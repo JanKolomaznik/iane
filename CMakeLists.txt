@@ -40,6 +40,19 @@ set_target_properties(iane PROPERTIES
 	INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>"
 )
 
+option(IANE_ENABLE_FFT "Enable FFTW and optional cuFFT support" OFF)
+if(IANE_ENABLE_FFT)
+	find_path(IANE_FFTW_INCLUDE_DIR fftw3.h REQUIRED)
+	find_library(IANE_FFTW_LIBRARY NAMES fftw3f REQUIRED)
+	add_library(iane_fft INTERFACE)
+	target_include_directories(iane_fft INTERFACE "${IANE_FFTW_INCLUDE_DIR}")
+	target_link_libraries(iane_fft INTERFACE iane "${IANE_FFTW_LIBRARY}")
+	if(IANE_ENABLE_CUDA)
+		find_package(CUDAToolkit REQUIRED)
+		target_link_libraries(iane_fft INTERFACE CUDA::cufft)
+	endif()
+endif()
+
 # ------------------------------------------------------------
 # Options for building tests and tools
 # ------------------------------------------------------------
