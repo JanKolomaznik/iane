@@ -2,7 +2,7 @@
 #include "../algorithms/cuda_test_main.hpp"
 
 #include "prepared_cases.hpp"
-#include "sequence_cases.hpp"
+#include "composition_cases.hpp"
 
 BOOST_AUTO_TEST_CASE(preparation_runs_once) { prepared_tests::check_prepared_runs(iane::backend::cuda); }
 
@@ -13,3 +13,8 @@ BOOST_AUTO_TEST_CASE(fft_coefficients_and_round_trip) { prepared_tests::check_ff
 #endif
 
 BOOST_AUTO_TEST_CASE(scan_reduce_and_integral_image) { prepared_tests::check_sequences(iane::backend::cuda); }
+
+BOOST_AUTO_TEST_CASE(histogram_equalization_and_stable_compaction)
+{
+	prepared_tests::check_histogram_and_compaction(iane::backend::cuda);
+}

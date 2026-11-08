@@ -2,7 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "prepared_cases.hpp"
-#include "sequence_cases.hpp"
+#include "composition_cases.hpp"
 
 BOOST_AUTO_TEST_CASE(preparation_runs_once) { prepared_tests::check_prepared_runs(iane::backend::cpu); }
 
@@ -73,4 +73,78 @@ BOOST_AUTO_TEST_CASE(empty_axis_reduction_and_shape_validation)
 	iane::host_image<std::uint64_t, 1> wrong_output(4);
 	BOOST_CHECK_THROW(exec.prepare(algorithm, source, wrong_output.view()), std::invalid_argument);
 	BOOST_CHECK_THROW(exec.run(reduction, source, wrong_output.view()), std::invalid_argument);
+}
+
+BOOST_AUTO_TEST_CASE(histogram_equalization_and_stable_compaction)
+{
+	prepared_tests::check_histogram_and_compaction(iane::backend::cpu);
+}
+
+BOOST_AUTO_TEST_CASE(pyramid_with_two_construction_rules_and_borrowed_levels)
+{
+	using image_t = iane::host_image<float, 2>;
+	using coord_t = iane::math::vec2i;
+	const coord_t extents[]{coord_t{5, 2}, coord_t{3, 2}, coord_t{2, 2}};
+	const auto build = [&](auto aCombine) {
+		iane::image_pyramid<image_t> pyramid(extents);
+		auto levels = pyramid.view();
+		iane::for_each_position(levels.level(0), [](float& aPixel, coord_t aPosition) {
+			aPixel = static_cast<float>(aPosition[0] + 10 * aPosition[1]);
+		});
+		for (std::size_t i = 1; i < levels.level_count(); ++i) {
+			const auto source = levels.level(i - 1);
+			const auto destination = levels.level(i);
+			const int last = source.dimensions()[0] - 1;
+			auto samples = iane::generate_view(destination, [=](coord_t aPosition) {
+				const int x = 2 * aPosition[0];
+				const int y = aPosition[1];
+				return aCombine(source[coord_t{std::max(0, x - 1), y}], source[coord_t{x, y}],
+					source[coord_t{std::min(last, x + 1), y}]);
+			});
+			iane::copy(samples, destination);
+		}
+		return pyramid;
+	};
+	auto gaussian = build([](float aLeft, float aCenter, float aRight) {
+		return (aLeft + 2 * aCenter + aRight) / 4;
+	});
+	auto maximum = build([](float aLeft, float aCenter, float aRight) {
+		return std::max({aLeft, aCenter, aRight});
+	});
+	const auto smooth = gaussian.const_view();
+	const auto peak = maximum.const_view();
+	const coord_t left{0, 0};
+	const coord_t right{1, 1};
+	BOOST_TEST(smooth.level_count() == 3u);
+	BOOST_TEST(smooth.level(2)[left] == 0.6875f);
+	BOOST_TEST(smooth.level(2)[right] == 13.3125f);
+	BOOST_TEST(peak.level(2)[left] == 3.0f);
+	BOOST_TEST(peak.level(2)[right] == 14.0f);
+
+	const auto cropped = smooth.level(0).subview(coord_t{1, 0}, coord_t{4, 2});
+	const image_t::const_view_t table[]{cropped, peak.level(2)};
+	const iane::pyramid_view<image_t::const_view_t> borrowed(table);
+	BOOST_TEST(borrowed.level(0)[left] == 1.0f);
+	BOOST_TEST(borrowed.level(1)[right] == 14.0f);
+	BOOST_CHECK_THROW(borrowed.level(2), std::out_of_range);
+}
+
+BOOST_AUTO_TEST_CASE(histogram_ignores_invalid_indices_and_constant_cdf_uses_identity)
+{
+	const int values[]{-1, 1, 3, 1};
+	auto source = iane::host::make_const_view<int, 1>(values, 4);
+	iane::host_image<unsigned int, 1> bins(3);
+	iane::host_image<unsigned int, 1> cdf(3);
+	iane::host_image<float, 1> lut(3);
+	iane::histogram(source, bins.view(), prepared_tests::pixel_bin{});
+	BOOST_TEST(bins.view()[0] == 0u);
+	BOOST_TEST(bins.view()[1] == 2u);
+	BOOST_TEST(bins.view()[2] == 0u);
+	auto exec = iane::make_execution_context();
+	auto scan = exec.prepare(iane::inclusive_scan(prepared_tests::add_count{}, 0u), bins.const_view(), cdf.view());
+	exec.run(scan, bins.const_view(), cdf.view());
+	iane::equalization_lut(cdf.const_view(), lut.view());
+	BOOST_TEST(lut.view()[0] == 0.0f);
+	BOOST_TEST(lut.view()[1] == 0.5f);
+	BOOST_TEST(lut.view()[2] == 1.0f);
 }
