@@ -26,10 +26,13 @@ std::size_t element_count(const TExtent& aSize)
 {
 	bool empty = false;
 	for (int i = 0; i < tDim; ++i) {
-		if (axis(aSize, i) < 0) {
-			throw std::invalid_argument("Image dimensions must be nonnegative");
+		const auto extent = axis(aSize, i);
+		if constexpr (std::is_signed_v<decltype(extent)>) {
+			if (extent < 0) {
+				throw std::invalid_argument("Image dimensions must be nonnegative");
+			}
 		}
-		empty |= axis(aSize, i) == 0;
+		empty |= extent == 0;
 	}
 	if (empty) {
 		return 0;
@@ -70,7 +73,7 @@ IANE_DECL_HYBRID TCoordinate coordinate_at(std::size_t aIndex, const TExtent& aS
 		axis(position, i) = static_cast<int>(aIndex % extent);
 		aIndex /= extent;
 	}
-	axis(position, tDim - 1) = static_cast<int>(aIndex);
+	axis(position, tDim - 1) = aIndex;
 	return position;
 }
 

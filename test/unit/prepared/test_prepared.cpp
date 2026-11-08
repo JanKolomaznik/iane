@@ -2,6 +2,7 @@
 #include <boost/test/included/unit_test.hpp>
 
 #include "prepared_cases.hpp"
+#include "sequence_cases.hpp"
 
 BOOST_AUTO_TEST_CASE(preparation_runs_once) { prepared_tests::check_prepared_runs(iane::backend::cpu); }
 
@@ -53,3 +54,23 @@ BOOST_AUTO_TEST_CASE(fft_reuses_plan_with_new_buffers_and_rejects_aliasing)
 	BOOST_TEST(context.scratch_capacity() == 0u);
 }
 #endif
+
+BOOST_AUTO_TEST_CASE(scan_reduce_and_integral_image) { prepared_tests::check_sequences(iane::backend::cpu); }
+
+BOOST_AUTO_TEST_CASE(empty_axis_reduction_and_shape_validation)
+{
+	using coord_t = iane::math::vec2i;
+	iane::host_image<std::uint64_t, 1> output(5);
+	const auto source = iane::host::make_const_view<std::uint64_t, 2>(nullptr, coord_t{0, 5});
+	const auto algorithm = iane::reduce_along<0>(prepared_tests::sequence_plus{}, std::uint64_t{19});
+	auto exec = iane::make_execution_context(iane::cpu_policy{.threads = 4});
+	auto reduction = exec.prepare(algorithm, source, output.view());
+	exec.run(reduction, source, output.view()).wait();
+	for (int i = 0; i < 5; ++i) {
+		BOOST_TEST(output.view()[i] == 19u);
+	}
+	BOOST_TEST(exec.scratch_capacity() == 0u);
+	iane::host_image<std::uint64_t, 1> wrong_output(4);
+	BOOST_CHECK_THROW(exec.prepare(algorithm, source, wrong_output.view()), std::invalid_argument);
+	BOOST_CHECK_THROW(exec.run(reduction, source, wrong_output.view()), std::invalid_argument);
+}
