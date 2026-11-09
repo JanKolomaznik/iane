@@ -23,4 +23,21 @@ concept Locator = requires(const TLocator& aLocator, const typename TLocator::of
 	{ aLocator[aOffset] } -> std::convertible_to<typename TLocator::value_type>;
 };
 
+/**
+ * @ingroup iane_concepts
+ * @brief A neighborhood accessor with sampling at relative continuous offsets.
+ * @tparam TLocator Candidate exposing value_type, coord_t, offset_t and a positive rank.
+ *
+ * position() is the continuous center in source-view coordinates. A zero
+ * offset to sample() selects that center. The locator defines its boundaries.
+ */
+template<class TLocator>
+concept SamplingLocator = requires(const TLocator& aLocator, const typename TLocator::offset_t& aOffset) {
+	typename TLocator::value_type;
+	typename TLocator::coord_t;
+	requires (TLocator::dimension > 0);
+	{ aLocator.position() } -> std::same_as<typename TLocator::coord_t>;
+	{ aLocator.sample(aOffset) } -> std::convertible_to<typename TLocator::value_type>;
+};
+
 } // namespace iane::concepts

@@ -13,7 +13,7 @@ namespace iane::math::detail {
 template<class TCoordinate>
 IANE_DECL_HYBRID decltype(auto) axis(TCoordinate& aCoordinate, int aAxis)
 {
-	if constexpr (std::is_integral_v<TCoordinate>) {
+	if constexpr (std::is_arithmetic_v<TCoordinate>) {
 		return (aCoordinate);
 	} else {
 		return aCoordinate[aAxis];

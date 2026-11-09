@@ -73,6 +73,22 @@ concept ReadableView = ViewDomain<TView> &&
 
 /**
  * @ingroup iane_view_concepts
+ * @brief A readable view with sampling at continuous, view-local coordinates.
+ * @tparam TView Candidate exposing sample_coord_t and sample(position).
+ *
+ * The outer corner is the origin. Along each axis, index i has its center
+ * at i + 0.5. Filtering and boundary behavior are specified by the view.
+ * The sampled value may have a different type from the indexed texel.
+ */
+template<class TView>
+concept InterpolatedView = ReadableView<TView> &&
+	requires(const TView& aView, const typename TView::sample_coord_t& aPosition) {
+		aView.sample(aPosition);
+		requires (!std::is_void_v<decltype(aView.sample(aPosition))>);
+	};
+
+/**
+ * @ingroup iane_view_concepts
  * @brief A view whose indexed result accepts assignment from the given type.
  * @tparam TView Candidate destination view.
  * @tparam TValue Assigned type. Defaults to the view's element type.

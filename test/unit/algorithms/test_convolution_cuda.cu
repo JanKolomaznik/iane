@@ -161,3 +161,31 @@ BOOST_AUTO_TEST_CASE(texture_3d_upload_from_strided_host_and_device_views)
 	iane::copy(linear.const_view().subview(storage_origin, size), texture);
 	verify(1000);
 }
+
+static_assert(iane::concepts::InterpolatedView<iane::texture_image_view<int, 1>>);
+static_assert(iane::concepts::InterpolatedView<iane::texture_image_view<float, 2>>);
+static_assert(iane::concepts::InterpolatedView<iane::texture_image_view<int, 3>>);
+static_assert(!iane::concepts::InterpolatedView<iane::const_host_image_view<float, 2>>);
+
+BOOST_AUTO_TEST_CASE(texture_sample_uses_crop_corner_as_origin)
+{
+	iane::host_image<int, 1> source(4);
+	const int values[]{99, 10, 20, 99};
+	std::copy_n(values, 4, source.pointer());
+	iane::texture_image<int, 1> texture(4);
+	iane::copy(source.const_view(), texture);
+
+	const auto crop = texture.const_view().subview(1, 3).subview(0, 2);
+	const auto empty = crop.subview(0, 0);
+	iane::device_image<int, 1> device_output(8);
+	iane::host_image<int, 1> output(8);
+	iane::for_each_position(device_output.view(), [crop, empty] IANE_CUDA_DEVICE (int& aValue, int aIndex) {
+		const float coordinates[]{-1.0f, 0.0f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
+		aValue = aIndex == 7 ? empty.sample(0.0f) : crop.sample(coordinates[aIndex]);
+	});
+	iane::copy(device_output.const_view(), output.view()).wait();
+	const int expected[]{10, 10, 10, 10, 20, 20, 20, 0};
+	for (int i = 0; i < 8; ++i) {
+		BOOST_TEST(output.view()[i] == expected[i]);
+	}
+}

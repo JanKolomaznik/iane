@@ -31,3 +31,22 @@ expressed in whole pitched rows, the upload enqueues one copy per slice.
 An empty extent requires no CUDA allocation and the matching upload is a no-op.
 Only single-channel 8-, 16- and 32-bit integer elements and 32-bit float
 elements are supported.
+
+## Fractional coordinates
+
+Texture views model `iane::concepts::InterpolatedView` and expose
+`sample(position)` in CUDA device code. The position is a float in 1D
+and a vector of floats in 2D and 3D. The origin is the outer corner of
+the first texel. In 2D, texel `{x, y}` occupies
+`[x, x + 1] × [y, y + 1]`, so `sample({x + 0.5f, y + 0.5f})` samples
+the same center as `view[{x, y}]`. The origin `{0.0f, 0.0f}` is the
+outer corner of the view, including for nested crops.
+
+For example, for a 1D texture containing `[10, 20]`, point sampling at
+`0.0f`, `0.5f`, and `0.75f` yields `10`. Sampling at `1.0f` or
+`1.5f` yields `20`. The texture owner uses CUDA point filtering.
+Sampling clamps to the edge texel centers of the logical view, so a crop
+behaves as an independent image. An empty view or a nonfinite coordinate
+returns a zero-initialized value. The concept leaves boundary behavior and
+the filtering rule to the view. Its sampled value type may differ from the
+integer-indexed texel type.

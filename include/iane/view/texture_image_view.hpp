@@ -1,9 +1,11 @@
 #pragma once
 
 #include <iane/math/coord_traits.hpp>
+#include <iane/math/index.hpp>
 #include <iane/math/vector_ops.hpp>
 
 #if defined(__CUDACC__)
+#include <cmath>
 #include <concepts>
 
 namespace iane {
@@ -28,6 +30,7 @@ public:
 	using value_type = TElement;
 	using coord_t = typename math::dim_traits<tDim>::coord_t;
 	using extents_t = typename math::dim_traits<tDim>::extents_t;
+	using sample_coord_t = typename math::dim_traits<tDim>::float_coord_t;
 	using is_device_view_tag = void;
 	static constexpr int dimension = tDim;
 
@@ -41,15 +44,32 @@ public:
 	/// Read the texel at an in-bounds integer position.
 	IANE_CUDA_DEVICE TElement operator[](const coord_t& aPosition) const
 	{
-		if constexpr (tDim == 1) {
-			return tex1D<TElement>(mTexture, (mOrigin + aPosition) + 0.5f);
-		} else if constexpr (tDim == 2) {
-			return tex2D<TElement>(mTexture, (mOrigin[0] + aPosition[0]) + 0.5f,
-				(mOrigin[1] + aPosition[1]) + 0.5f);
-		} else {
-			return tex3D<TElement>(mTexture, (mOrigin[0] + aPosition[0]) + 0.5f,
-				(mOrigin[1] + aPosition[1]) + 0.5f, (mOrigin[2] + aPosition[2]) + 0.5f);
+		sample_coord_t position{};
+		for (int i = 0; i < tDim; ++i) {
+			math::detail::axis(position, i) =
+				math::detail::axis(mOrigin, i) + math::detail::axis(aPosition, i) + 0.5f;
 		}
+		return fetch(position);
+	}
+
+	/**
+	 * @brief Point sample, clamped to the edge texel centers of this view.
+	 * @param aPosition View-local coordinate measured from the outer corner.
+	 * @return Sampled texel, or zero for an empty view or nonfinite coordinate.
+	 */
+	IANE_CUDA_DEVICE TElement sample(sample_coord_t aPosition) const
+	{
+		using math::detail::axis;
+		for (int i = 0; i < tDim; ++i) {
+			auto& x = axis(aPosition, i);
+			const auto extent = axis(mSize, i);
+			if (extent <= 0 || !std::isfinite(x)) {
+				return {};
+			}
+			const float last = extent - 0.5f;
+			x = (x < 0.5f ? 0.5f : (x > last ? last : x)) + axis(mOrigin, i);
+		}
+		return fetch(aPosition);
 	}
 
 	/// Borrow an in-bounds region whose coordinates start at zero.
@@ -61,6 +81,17 @@ public:
 	}
 
 private:
+	IANE_CUDA_DEVICE TElement fetch(const sample_coord_t& aPosition) const
+	{
+		if constexpr (tDim == 1) {
+			return tex1D<TElement>(mTexture, aPosition);
+		} else if constexpr (tDim == 2) {
+			return tex2D<TElement>(mTexture, aPosition[0], aPosition[1]);
+		} else {
+			return tex3D<TElement>(mTexture, aPosition[0], aPosition[1], aPosition[2]);
+		}
+	}
+
 	cudaTextureObject_t mTexture;
 	extents_t mSize;
 	coord_t mOrigin{};
