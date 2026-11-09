@@ -1,0 +1,8 @@
+{
+  "transform": "fft",
+  "output": "fft-amplitude.png",
+  "phase-output": "fft-phase.png",
+  "backend": "cpu",
+  "warmup": 1,
+  "runs": 3
+}

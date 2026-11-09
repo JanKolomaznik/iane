@@ -147,4 +147,57 @@ inline void check_multilevel_wavelet(iane::backend aBackend)
 	BOOST_CHECK_THROW(iane::make_wavelet_pyramid_view(output.const_view(), 3), std::invalid_argument);
 }
 
+template<class TForward, class TInverse>
+void check_multilevel_round_trip(iane::backend aBackend, TForward aForward, TInverse aInverse)
+{
+	using coord_t = iane::math::vec2i;
+	const coord_t size{16, 8};
+	const coord_t left_origin{1, 1};
+	const coord_t right_origin{18, 1};
+	iane::host_image<float, 2> input(size);
+	iane::host_image<float, 2> output(35, 10);
+	for (int i = 0; i < 128; ++i) {
+		input.pointer()[i] = static_cast<float>((i * 17) % 31 - 13);
+	}
+
+	iane::run_on(iane::run_options{.backend = aBackend}, input.const_view(), output.view(),
+		[=](auto aSource, auto aDestination, auto aExecution) {
+			const auto policy = static_cast<iane::view_policy<decltype(aDestination)>>(aExecution);
+			auto exec = iane::make_execution_context(policy);
+			auto coefficients = aDestination.subview(left_origin, size);
+			auto restored = aDestination.subview(right_origin, size);
+			auto tree = iane::make_wavelet_pyramid_view(coefficients, 3);
+			auto analysis = exec.prepare(iane::multilevel_wavelet_forward(aForward, tree.level_count()),
+				aSource, coefficients);
+			auto synthesis = exec.prepare(iane::multilevel_wavelet_inverse(aInverse, tree.level_count()),
+				tree.coefficients(), restored);
+			BOOST_TEST(exec.scratch_capacity() == 128 * sizeof(float));
+
+			iane::copy(iane::constant_view(aDestination, -100.0f), aDestination, policy);
+			exec.run(analysis, aSource, coefficients);
+			exec.run(synthesis, tree.coefficients(), restored);
+			return exec.run(synthesis, tree.coefficients(), coefficients);
+		});
+
+	const auto in_place = output.const_view().subview(left_origin, size);
+	const auto out_of_place = output.const_view().subview(right_origin, size);
+	for (int y = 0; y < size[1]; ++y) {
+		for (int x = 0; x < size[0]; ++x) {
+			const coord_t position{x, y};
+			const auto expected = input.const_view()[position];
+			BOOST_CHECK_SMALL(in_place[position] - expected, 0.00003f);
+			BOOST_CHECK_SMALL(out_of_place[position] - expected, 0.00003f);
+		}
+	}
+	const coord_t outside{17, 1};
+	BOOST_TEST(output.const_view()[outside] == -100.0f);
+}
+
+inline void check_multilevel_reconstruction(iane::backend aBackend)
+{
+	check_multilevel_round_trip(aBackend, iane::wavelet_forward, iane::wavelet_inverse);
+	check_multilevel_round_trip(aBackend, iane::db2_forward, iane::db2_inverse);
+	check_multilevel_round_trip(aBackend, iane::sym4_forward, iane::sym4_inverse);
+}
+
 } // namespace prepared_tests

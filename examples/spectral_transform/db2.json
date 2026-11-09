@@ -1,0 +1,8 @@
+{
+  "transform": "db2",
+  "levels": 3,
+  "output": "db2-mallat.png",
+  "backend": "cpu",
+  "warmup": 1,
+  "runs": 3
+}

@@ -1,0 +1,8 @@
+{
+  "transform": "haar",
+  "levels": 2,
+  "output": "haar-mallat.png",
+  "backend": "cpu",
+  "warmup": 1,
+  "runs": 3
+}

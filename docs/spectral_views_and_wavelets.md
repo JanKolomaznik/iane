@@ -121,3 +121,26 @@ while their coefficient storage remains valid. Only the coarsest LL is
 available as an approximation because finer LL quadrants have been
 overwritten by their decompositions. The level count passed to the tree
 factory must match the decomposition used to produce the coefficients.
+
+### Reconstruction
+
+```cpp
+auto tree = iane::make_wavelet_pyramid_view(coefficients, 3);
+auto inverse = exec.prepare(
+    iane::multilevel_wavelet_inverse(iane::db2_inverse, tree.level_count()),
+    tree.coefficients(), restored);
+exec.run(inverse, tree.coefficients(), restored).wait();
+```
+
+Use the matching single-level synthesis, `wavelet_inverse` for Haar,
+`db2_inverse` for db2, or `sym4_inverse` for sym4. Reconstruction starts
+with the coarsest LL and its three detail bands. At each step the restored
+region becomes the LL input to the next finer level. Use the original
+coefficient layout, level count and wavelet. The result has the same
+extents and reconstructs the input up to floating-point rounding.
+
+For exact in-place reconstruction, pass the same writable coefficient
+view as the destination. This replaces the coefficients with pixels.
+With a separate destination, the source coefficients are preserved and
+multilevel synthesis first copies them to the destination. Use either
+identical layouts or disjoint storage. Scratch is reused between levels.

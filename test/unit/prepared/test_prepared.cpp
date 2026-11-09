@@ -202,3 +202,8 @@ BOOST_AUTO_TEST_CASE(multilevel_wavelet_validates_levels_and_reused_extent)
 	BOOST_CHECK_THROW(exec.prepare(iane::multilevel_wavelet_forward(iane::db2_forward, 3),
 		input.const_view(), output.view()), std::invalid_argument);
 }
+
+BOOST_AUTO_TEST_CASE(multilevel_wavelet_round_trip)
+{
+	prepared_tests::check_multilevel_reconstruction(iane::backend::cpu);
+}

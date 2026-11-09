@@ -33,8 +33,8 @@ concept wavelet_subview = concepts::ViewDomain<TView> &&
 		{ aView.subview(aCorner, aSize) } -> std::same_as<TView>;
 	};
 
-// Execute the prepared first level, then reuse its workspace in nested LL views.
-template<class TState>
+// Reuse the same scratch region while traversing nested LL views.
+template<class TState, bool tAnalysis>
 struct multilevel_wavelet_state {
 	math::vec2i size;
 	std::vector<TState> levels;
@@ -51,23 +51,49 @@ struct multilevel_wavelet_state {
 			throw std::invalid_argument("Wavelet views must match the prepared shape");
 		}
 
-		auto first_workspace = aScratch;
-		auto result = levels.front().run(aSource, aDestination, first_workspace, aPolicy);
-		auto level_size = size;
-		for (std::size_t i = 1; i < levels.size(); ++i) {
-			level_size = wavelet_half(level_size);
-			auto ll = aDestination.subview(math::vec2i{}, level_size);
-			auto workspace = aScratch;
-			result = levels[i].run(ll, ll, workspace, aPolicy);
+		if constexpr (tAnalysis) {
+			auto first_workspace = aScratch;
+			auto result = levels.front().run(aSource, aDestination, first_workspace, aPolicy);
+			for (std::size_t i = 1; i < levels.size(); ++i) {
+				auto ll = aDestination.subview(math::vec2i{}, levels[i].size);
+				auto workspace = aScratch;
+				result = levels[i].run(ll, ll, workspace, aPolicy);
+			}
+			return result;
+		} else {
+			if (levels.size() == 1) {
+				return levels.front().run(aSource, aDestination, aScratch, aPolicy);
+			}
+			if (!same_layout(aSource, aDestination)) {
+				copy(aSource, aDestination, aPolicy);
+			}
+			for (std::size_t i = levels.size() - 1; i > 0; --i) {
+				auto ll = aDestination.subview(math::vec2i{}, levels[i].size);
+				auto workspace = aScratch;
+				levels[i].run(ll, ll, workspace, aPolicy);
+			}
+			return levels.front().run(aDestination, aDestination, aScratch, aPolicy);
 		}
-		return result;
+	}
+
+	template<class TSrc, class TDst>
+	static bool same_layout(TSrc aSource, TDst aDestination)
+	{
+		if constexpr (concepts::MemoryView<TSrc> && concepts::MemoryView<TDst>) {
+			const auto source_strides = aSource.strides();
+			const auto destination_strides = aDestination.strides();
+			return aSource.pointer() == aDestination.pointer() &&
+				source_strides[0] == destination_strides[0] &&
+				source_strides[1] == destination_strides[1];
+		}
+		return false;
 	}
 };
 
 // Prepare all levels without storing any of the prototype views.
-template<class TAlgorithm>
+template<class TAlgorithm, bool tAnalysis>
 struct multilevel_wavelet_algorithm {
-	TAlgorithm forward;
+	TAlgorithm transform;
 	std::size_t levels;
 
 	template<class TSrc, wavelet_subview TDst, class TPolicy>
@@ -76,17 +102,17 @@ struct multilevel_wavelet_algorithm {
 	{
 		const auto size = matching_dimensions(aSource, aDestination);
 		check_wavelet_levels(size, levels);
-		using state_t = decltype(forward.prepare(aSource, aDestination, aPolicy));
-		multilevel_wavelet_state<state_t> state{size, {}, 0};
+		using state_t = decltype(transform.prepare(aSource, aDestination, aPolicy));
+		multilevel_wavelet_state<state_t, tAnalysis> state{size, {}, 0};
 		state.levels.reserve(levels);
-		state.levels.push_back(forward.prepare(aSource, aDestination, aPolicy));
+		state.levels.push_back(transform.prepare(aSource, aDestination, aPolicy));
 		state.bytes = state.levels.front().scratch_bytes();
 
 		auto level_size = size;
 		for (std::size_t i = 1; i < levels; ++i) {
 			level_size = wavelet_half(level_size);
 			auto ll = aDestination.subview(math::vec2i{}, level_size);
-			state.levels.push_back(forward.prepare(ll, ll, aPolicy));
+			state.levels.push_back(transform.prepare(ll, ll, aPolicy));
 			state.bytes = std::max(state.bytes, state.levels.back().scratch_bytes());
 		}
 		return state;
@@ -109,7 +135,24 @@ struct multilevel_wavelet_algorithm {
 template<template<int, class> class TPass>
 auto multilevel_wavelet_forward(detail::separable_wavelet_algorithm<TPass, true> aForward, std::size_t aLevels)
 {
-	return detail::multilevel_wavelet_algorithm{aForward, aLevels};
+	return detail::multilevel_wavelet_algorithm<decltype(aForward), true>{aForward, aLevels};
+}
+
+/**
+ * @brief Configure synthesis from a packed Mallat coefficient image.
+ * @param aInverse Matching single-level synthesis, such as wavelet_inverse.
+ * @param aLevels Number of decomposition levels.
+ * @return Algorithm for execution_context::prepare on same-backend float views.
+ *
+ * Restores the coarsest LL and detail bands first, then progresses toward
+ * the full image. Use the original coefficient layout and wavelet.
+ * Source and destination must have identical layouts for exact in-place
+ * use or disjoint storage. Keep both views alive through completion.
+ */
+template<template<int, class> class TPass>
+auto multilevel_wavelet_inverse(detail::separable_wavelet_algorithm<TPass, false> aInverse, std::size_t aLevels)
+{
+	return detail::multilevel_wavelet_algorithm<decltype(aInverse), false>{aInverse, aLevels};
 }
 
 /// Wavelet detail orientation, with the horizontal axis named first.
@@ -129,7 +172,7 @@ public:
 	 * @brief Describe a coefficient image produced with the given number of levels.
 	 * @throws std::invalid_argument If the extents cannot support the levels.
 	 */
-	wavelet_pyramid_view(TView aCoefficients, std::size_t aLevels) : mApproximation(aCoefficients)
+	wavelet_pyramid_view(TView aCoefficients, std::size_t aLevels) : mCoefficients(aCoefficients)
 	{
 		auto size = aCoefficients.dimensions();
 		detail::check_wavelet_levels(size, aLevels);
@@ -142,7 +185,7 @@ public:
 			mDetails[1].push_back(aCoefficients.subview(math::vec2i{0, size[1]}, size));
 			mDetails[2].push_back(aCoefficients.subview(size, size));
 		}
-		mApproximation = aCoefficients.subview(math::vec2i{}, size);
+		mApproximationSize = size;
 	}
 
 	/// Return the number of detail levels.
@@ -156,10 +199,14 @@ public:
 	pyramid_view<TView> details(wavelet_band) const && = delete;
 
 	/// Return the coarsest LL view.
-	TView approximation() const { return mApproximation; }
+	TView approximation() const { return mCoefficients.subview(math::vec2i{}, mApproximationSize); }
+
+	/// Return the full packed coefficient view for reconstruction.
+	TView coefficients() const { return mCoefficients; }
 
 private:
-	TView mApproximation;
+	TView mCoefficients;
+	math::vec2i mApproximationSize;
 	std::array<std::vector<TView>, 3> mDetails;
 };
 

@@ -1,0 +1,8 @@
+{
+  "transform": "sym4",
+  "levels": 4,
+  "output": "sym4-mallat.png",
+  "backend": "cpu",
+  "warmup": 1,
+  "runs": 3
+}

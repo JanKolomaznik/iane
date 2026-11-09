@@ -41,3 +41,8 @@ BOOST_AUTO_TEST_CASE(multilevel_wavelet_pyramid)
 {
 	prepared_tests::check_multilevel_wavelet(iane::backend::cuda);
 }
+
+BOOST_AUTO_TEST_CASE(multilevel_wavelet_round_trip)
+{
+	prepared_tests::check_multilevel_reconstruction(iane::backend::cuda);
+}
