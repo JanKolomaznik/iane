@@ -36,3 +36,8 @@ BOOST_AUTO_TEST_CASE(real_fft_odd_and_even_round_trips)
 	prepared_tests::check_real_fft(iane::backend::cuda, coord_t{6, 4});
 }
 #endif
+
+BOOST_AUTO_TEST_CASE(multilevel_wavelet_pyramid)
+{
+	prepared_tests::check_multilevel_wavelet(iane::backend::cuda);
+}

@@ -47,6 +47,6 @@ struct orthogonal_wavelet {
 
 template<class TFilter, bool tInverse>
 using orthogonal_wavelet_algorithm = separable_wavelet_algorithm<
-	orthogonal_wavelet<TFilter, tInverse>::template pass>;
+	orthogonal_wavelet<TFilter, tInverse>::template pass, !tInverse>;
 
 } // namespace iane::detail

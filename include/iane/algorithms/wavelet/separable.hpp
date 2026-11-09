@@ -37,7 +37,7 @@ struct separable_wavelet_state {
 };
 
 // Validate and size the reusable single-level separable wavelet.
-template<template<int, class> class TPass>
+template<template<int, class> class TPass, bool tAnalysis = true>
 struct separable_wavelet_algorithm {
 	template<class TSrc, class TDst, class TPolicy>
 	requires separable_wavelet_views<TSrc, TDst, TPolicy>

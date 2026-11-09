@@ -182,3 +182,23 @@ BOOST_AUTO_TEST_CASE(real_fft_rejects_invalid_layout_and_reuse)
 	BOOST_CHECK_THROW(exec.prepare(iane::rfft, crop, packed.view()), std::invalid_argument);
 }
 #endif
+
+BOOST_AUTO_TEST_CASE(multilevel_wavelet_pyramid)
+{
+	prepared_tests::check_multilevel_wavelet(iane::backend::cpu);
+}
+
+BOOST_AUTO_TEST_CASE(multilevel_wavelet_validates_levels_and_reused_extent)
+{
+	iane::host_image<float, 2> input(8, 4);
+	iane::host_image<float, 2> output(8, 4);
+	iane::host_image<float, 2> other(4, 4);
+	auto exec = iane::make_execution_context();
+	const auto valid = iane::multilevel_wavelet_forward(iane::db2_forward, 2);
+	auto plan = exec.prepare(valid, input.const_view(), output.view());
+	BOOST_CHECK_THROW(exec.run(plan, other.const_view(), other.view()), std::invalid_argument);
+	BOOST_CHECK_THROW(exec.prepare(iane::multilevel_wavelet_forward(iane::db2_forward, 0),
+		input.const_view(), output.view()), std::invalid_argument);
+	BOOST_CHECK_THROW(exec.prepare(iane::multilevel_wavelet_forward(iane::db2_forward, 3),
+		input.const_view(), output.view()), std::invalid_argument);
+}

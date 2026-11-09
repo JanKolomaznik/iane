@@ -2,6 +2,7 @@
 
 #include <iane/algorithms/fft/spectrum.hpp>
 #include <iane/algorithms/wavelet/db2.hpp>
+#include <iane/algorithms/wavelet/multilevel.hpp>
 #include <iane/algorithms/wavelet/sym4.hpp>
 
 #include "prepared_cases.hpp"
@@ -101,6 +102,49 @@ inline void check_additional_wavelets(iane::backend aBackend)
 		4, 0.482962913f, -0.129409523f, 0.224143868f);
 	check_wavelet(aBackend, iane::sym4_forward, iane::sym4_inverse,
 		2, 0.032223101f, -0.075765715f, -0.029635528f);
+}
+
+inline void check_multilevel_wavelet(iane::backend aBackend)
+{
+	using coord_t = iane::math::vec2i;
+	const coord_t size{8, 4};
+	iane::host_image<float, 2> input(size);
+	iane::host_image<float, 2> output(size);
+	iane::for_each_position(input.view(), [](float& aPixel, coord_t aPosition) {
+		aPixel = static_cast<float>(aPosition[0] + 10 * aPosition[1]);
+	});
+
+	iane::run_on(iane::run_options{.backend = aBackend}, input.const_view(), output.view(),
+		[](auto aSource, auto aDestination, auto aExecution) {
+			const auto policy = static_cast<iane::view_policy<decltype(aDestination)>>(aExecution);
+			auto exec = iane::make_execution_context(policy);
+			auto plan = exec.prepare(iane::multilevel_wavelet_forward(iane::wavelet_forward, 2),
+				aSource, aDestination);
+			BOOST_TEST(exec.scratch_capacity() == 32 * sizeof(float));
+			iane::copy(aSource, aDestination, policy);
+			return exec.run(plan, aDestination, aDestination);
+		});
+
+	auto tree = iane::make_wavelet_pyramid_view(output.const_view(), 2);
+	const auto hl = tree.details(iane::wavelet_band::hl);
+	const auto lh = tree.details(iane::wavelet_band::lh);
+	const auto hh = tree.details(iane::wavelet_band::hh);
+	const coord_t zero{};
+	const coord_t second{1, 0};
+	BOOST_TEST(tree.level_count() == 2u);
+	BOOST_TEST(hl.level(0).dimensions()[0] == 4);
+	BOOST_TEST(hl.level(0).dimensions()[1] == 2);
+	BOOST_TEST(hl.level(1).dimensions()[0] == 2);
+	BOOST_TEST(hl.level(1).dimensions()[1] == 1);
+	BOOST_TEST(hl.level(0)[second] == -1.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_TEST(lh.level(0)[second] == -10.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_CHECK_SMALL(hh.level(0)[second], 0.00001f);
+	BOOST_TEST(hl.level(1)[zero] == -4.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_TEST(lh.level(1)[zero] == -40.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_CHECK_SMALL(hh.level(1)[zero], 0.00001f);
+	BOOST_TEST(tree.approximation()[zero] == 66.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_TEST(tree.approximation()[second] == 82.0f, boost::test_tools::tolerance(0.00001f));
+	BOOST_CHECK_THROW(iane::make_wavelet_pyramid_view(output.const_view(), 3), std::invalid_argument);
 }
 
 } // namespace prepared_tests
