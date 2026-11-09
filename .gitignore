@@ -42,3 +42,5 @@
 
 # Generated Doxygen documentation
 /docs/documentation/
+
+/build/

@@ -1,5 +1,5 @@
 #include <iane/algorithms/copy.hpp>
-#include <iane/algorithms/grayscale.hpp>
+#include <iane/algorithms/color/grayscale.hpp>
 
 #include "../common/cli.hpp"
 #include "../common/io.hpp"

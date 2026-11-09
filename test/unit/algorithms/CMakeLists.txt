@@ -1,4 +1,4 @@
-foreach(algorithm IN ITEMS for_each transform copy convolution resample)
+foreach(algorithm IN ITEMS for_each transform copy convolution resample color_morphology)
 	add_executable(test_${algorithm} test_${algorithm}.cpp)
 	target_link_libraries(test_${algorithm} PRIVATE iane Boost::unit_test_framework)
 	add_test(NAME ${algorithm}_cpu COMMAND test_${algorithm})
