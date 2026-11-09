@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iane/image/image.hpp>
+#include <iane/resource/cuda/managed_image.hpp>
 #include <iane/resource/packed_layout.hpp>
 #include <iane/resource/cuda/texture_image.hpp>
 #include <iane/execution/context.hpp>
