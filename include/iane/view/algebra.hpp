@@ -2,6 +2,8 @@
 
 #include <iane/view/procedural.hpp>
 
+#include <cmath>
+
 namespace iane {
 namespace detail {
 
@@ -87,6 +89,66 @@ IANE_DEFINE_VIEW_OPERATOR(/, divide_view_pixels)
 /// @}
 
 #undef IANE_DEFINE_VIEW_OPERATOR
+
+// Define each named unary function with a device-callable scalar operation.
+#define IANE_DEFINE_VIEW_MATH(tFunction) \
+	namespace detail { \
+	/* Apply the scalar standard-library math function to one pixel. */ \
+	struct tFunction##_view_pixel { \
+		template<class TValue> \
+		IANE_DECL_HYBRID auto operator()(const TValue& aValue) const -> decltype(std::tFunction(aValue)) \
+		{ \
+			return std::tFunction(aValue); \
+		} \
+	}; \
+	} \
+	template<detail::algebra_view TView> \
+	requires std::invocable<detail::tFunction##_view_pixel, typename TView::value_type> \
+	auto tFunction(TView aView) \
+	{ \
+		return map_view(aView, detail::tFunction##_view_pixel{}); \
+	}
+
+/**
+ * @name Pointwise view math
+ * Lazily apply the corresponding standard math function, including its
+ * scalar type promotions and domain rules. See map_view for lifetimes.
+ * @{
+ */
+IANE_DEFINE_VIEW_MATH(log)
+IANE_DEFINE_VIEW_MATH(log1p)
+IANE_DEFINE_VIEW_MATH(log2)
+IANE_DEFINE_VIEW_MATH(log10)
+IANE_DEFINE_VIEW_MATH(exp)
+IANE_DEFINE_VIEW_MATH(exp2)
+IANE_DEFINE_VIEW_MATH(sqrt)
+IANE_DEFINE_VIEW_MATH(sin)
+IANE_DEFINE_VIEW_MATH(cos)
+/// @}
+
+#undef IANE_DEFINE_VIEW_MATH
+
+namespace detail {
+
+// Raise one pixel to the corresponding exponent.
+struct pow_view_pixels {
+	template<class TBase, class TExponent>
+	IANE_DECL_HYBRID auto operator()(const TBase& aBase, const TExponent& aExponent) const
+		-> decltype(std::pow(aBase, aExponent))
+	{
+		return std::pow(aBase, aExponent);
+	}
+};
+
+} // namespace detail
+
+/// Lazily apply std::pow to corresponding pixels or broadcast an arithmetic scalar.
+template<class TBase, class TExponent>
+requires detail::algebra_operands<TBase, TExponent>
+auto pow(TBase aBase, TExponent aExponent)
+{
+	return detail::arithmetic_view(aBase, aExponent, detail::pow_view_pixels{});
+}
 
 namespace detail {
 // Make operators discoverable by ADL even when both operands are procedural.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iane/algorithms/fft/complex.hpp>
 #include <iane/algorithms/transform.hpp>
 #include <iane/execution/prepared.hpp>
 
@@ -14,12 +15,6 @@
 
 namespace iane {
 
-/// Single-precision complex pixel in interleaved real/imaginary order.
-struct alignas(2 * sizeof(float)) fft_complex {
-	float real;
-	float imag;
-};
-
 namespace detail {
 
 template<class TSrc, class TDst, class TPolicy>
@@ -30,6 +25,33 @@ concept fft_views = concepts::MemoryView<TSrc> && concepts::MemoryView<TDst> &&
 	std::same_as<decltype(std::declval<TDst>().pointer()), fft_complex*> &&
 	std::same_as<TPolicy, view_policy<TDst>>;
 
+template<class TView>
+std::size_t check_packed_fft_buffer(TView aView, std::size_t aAlignment)
+{
+	using element_t = typename TView::value_type;
+	const auto [count, strides] = resource::detail::packed_layout<element_t, 2>(aView.dimensions());
+	const auto actual = aView.strides();
+	if (actual[0] != strides[0] || actual[1] != strides[1]) {
+		throw std::invalid_argument("FFT requires packed views");
+	}
+	const auto address = reinterpret_cast<std::uintptr_t>(aView.pointer());
+	if (address == 0 || address % aAlignment != 0) {
+		throw std::invalid_argument("FFT requires aligned input and output buffers");
+	}
+	return count * sizeof(element_t);
+}
+
+template<class TSrc, class TDst>
+void check_disjoint_fft_buffers(TSrc aSource, TDst aDestination,
+	std::size_t aSourceBytes, std::size_t aDestinationBytes)
+{
+	const auto src = reinterpret_cast<std::uintptr_t>(aSource.pointer());
+	const auto dst = reinterpret_cast<std::uintptr_t>(aDestination.pointer());
+	if (src <= dst ? dst - src < aSourceBytes : src - dst < aDestinationBytes) {
+		throw std::invalid_argument("FFT requires disjoint input and output buffers");
+	}
+}
+
 template<class TSrc, class TDst>
 math::vec2i check_fft_views(TSrc aSource, TDst aDestination)
 {
@@ -37,21 +59,9 @@ math::vec2i check_fft_views(TSrc aSource, TDst aDestination)
 	if (size[0] <= 0 || size[1] <= 0) {
 		throw std::invalid_argument("FFT requires positive dimensions");
 	}
-	const auto [count, strides] = resource::detail::packed_layout<fft_complex, 2>(size);
-	const auto source_strides = aSource.strides();
-	const auto destination_strides = aDestination.strides();
-	for (int axis = 0; axis < 2; ++axis) {
-		if (source_strides[axis] != strides[axis] || destination_strides[axis] != strides[axis]) {
-			throw std::invalid_argument("FFT requires packed views");
-		}
-	}
-	const auto src = reinterpret_cast<std::uintptr_t>(aSource.pointer());
-	const auto dst = reinterpret_cast<std::uintptr_t>(aDestination.pointer());
-	const auto distance = src < dst ? dst - src : src - dst;
-	if (src == 0 || dst == 0 || src % alignof(fft_complex) != 0 ||
-	    dst % alignof(fft_complex) != 0 || distance < count * sizeof(fft_complex)) {
-		throw std::invalid_argument("FFT requires aligned, disjoint input and output buffers");
-	}
+	const auto source_bytes = check_packed_fft_buffer(aSource, alignof(fft_complex));
+	const auto destination_bytes = check_packed_fft_buffer(aDestination, alignof(fft_complex));
+	check_disjoint_fft_buffers(aSource, aDestination, source_bytes, destination_bytes);
 	return size;
 }
 
@@ -123,23 +133,43 @@ struct cufft_state {
 
 	std::size_t scratch_bytes() const { return bytes; }
 
-	cuda_execution run(const fft_complex* aSource, fft_complex* aDestination,
-		scratch_space<cuda_policy>& aScratch)
+	void bind_workspace(scratch_space<cuda_policy>& aScratch)
 	{
-		static_assert(sizeof(fft_complex) == sizeof(cufftComplex));
-		static_assert(alignof(fft_complex) >= alignof(cufftComplex));
 		auto* area = aScratch.bytes(bytes, alignof(cufftComplex));
 		if (area != work_area) {
 			check_cufft(cufftSetWorkArea(plan->handle, area), "Set FFT workspace");
 			work_area = area;
 		}
 		plan->submitted = true;
+	}
+
+	static cufftComplex* native(const fft_complex* aPointer)
+	{
+		static_assert(sizeof(fft_complex) == sizeof(cufftComplex));
+		static_assert(alignof(fft_complex) >= alignof(cufftComplex));
+		return reinterpret_cast<cufftComplex*>(const_cast<fft_complex*>(aPointer));
+	}
+
+	cuda_execution run(const fft_complex* aSource, fft_complex* aDestination,
+		scratch_space<cuda_policy>& aScratch)
+	{
+		bind_workspace(aScratch);
 		check_cufft(cufftExecC2C(plan->handle,
-			reinterpret_cast<cufftComplex*>(const_cast<fft_complex*>(aSource)),
-			reinterpret_cast<cufftComplex*>(aDestination), direction), "Execute CUDA FFT");
+			native(aSource), native(aDestination), direction), "Execute CUDA FFT");
 		return {plan->stream};
 	}
 };
+inline cufft_state make_cufft_state(math::vec2i aSize, cufftType aType, int aDirection, cuda_policy aPolicy)
+{
+	auto plan = std::make_unique<cufft_plan>();
+	plan->stream = aPolicy.stream;
+	check_cufft(cufftCreate(&plan->handle), "Create CUDA FFT plan");
+	check_cufft(cufftSetAutoAllocation(plan->handle, 0), "Disable CUDA FFT auto allocation");
+	std::size_t bytes{};
+	check_cufft(cufftMakePlan2d(plan->handle, aSize[1], aSize[0], aType, &bytes), "Plan CUDA FFT");
+	check_cufft(cufftSetStream(plan->handle, plan->stream), "Set CUDA FFT stream");
+	return {std::move(plan), bytes, aDirection};
+}
 #endif
 
 // Validate new views before executing the backend's reusable FFT plan.
@@ -185,16 +215,8 @@ struct fft_algorithm {
 			return fft_state<fftw_state, cpu_policy>{size, {fftw_state::plan_t(plan)}};
 #if defined(__CUDACC__)
 		} else {
-			auto plan = std::make_unique<cufft_plan>();
-			plan->stream = aPolicy.stream;
-			check_cufft(cufftCreate(&plan->handle), "Create CUDA FFT plan");
-			check_cufft(cufftSetAutoAllocation(plan->handle, 0), "Disable CUDA FFT auto allocation");
-			std::size_t bytes{};
-			check_cufft(cufftMakePlan2d(plan->handle, size[1], size[0], CUFFT_C2C, &bytes),
-				"Plan CUDA FFT");
-			check_cufft(cufftSetStream(plan->handle, plan->stream), "Set CUDA FFT stream");
 			return fft_state<cufft_state, cuda_policy>{size,
-				{std::move(plan), bytes, inverse ? CUFFT_INVERSE : CUFFT_FORWARD}};
+				make_cufft_state(size, CUFFT_C2C, inverse ? CUFFT_INVERSE : CUFFT_FORWARD, aPolicy)};
 #endif
 		}
 	}

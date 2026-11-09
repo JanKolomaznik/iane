@@ -1,4 +1,4 @@
-#include <iane/algorithms/fft.hpp>
+#include <iane/algorithms/fft/fft.hpp>
 #include <iane/view/procedural.hpp>
 
 #include "../common/cli.hpp"

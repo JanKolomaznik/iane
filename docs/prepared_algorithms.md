@@ -11,7 +11,7 @@ exec.run(inverse, spectrum.const_view(), spatial.view());
 exec.run(haar, samples.const_view(), bands.view()).wait();
 ```
 
-Include `<iane/algorithms/fft.hpp>` and `<iane/algorithms/haar.hpp>`.
+Include `<iane/algorithms/fft/fft.hpp>` and `<iane/algorithms/wavelet/haar.hpp>`.
 The context reserves shared temporary storage during preparation. Prepared
 operations belong to that context. They can run with other views of the same
 shape and supported layout. CPU execution completes before returning. A CUDA
@@ -37,3 +37,6 @@ pair sums and differences horizontally and then vertically. The output
 quadrants are low/low, high-horizontal/low-vertical, low-horizontal/high-vertical,
 and high/high, in reading order. The horizontal pass fills a temporary float
 image before the vertical pass writes output, so in-place execution is allowed.
+
+See [Spectral views and wavelets](spectral_views_and_wavelets.md) for lazy
+spectrum display and the db2 and sym4 analysis and synthesis operations.

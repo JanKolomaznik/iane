@@ -1,7 +1,11 @@
 #define BOOST_TEST_MODULE iane_prepared_cpu
 #include <boost/test/included/unit_test.hpp>
 
-#include "prepared_cases.hpp"
+#include "spectral_cases.hpp"
+
+#if defined(IANE_TEST_FFT)
+#include "real_fft_cases.hpp"
+#endif
 #include "composition_cases.hpp"
 
 BOOST_AUTO_TEST_CASE(preparation_runs_once) { prepared_tests::check_prepared_runs(iane::backend::cpu); }
@@ -148,3 +152,33 @@ BOOST_AUTO_TEST_CASE(histogram_ignores_invalid_indices_and_constant_cdf_uses_ide
 	BOOST_TEST(lut.view()[1] == 0.5f);
 	BOOST_TEST(lut.view()[2] == 1.0f);
 }
+
+BOOST_AUTO_TEST_CASE(spectral_display_views) { prepared_tests::check_spectrum_views(iane::backend::cpu); }
+
+BOOST_AUTO_TEST_CASE(additional_wavelets) { prepared_tests::check_additional_wavelets(iane::backend::cpu); }
+
+#if defined(IANE_TEST_FFT)
+BOOST_AUTO_TEST_CASE(real_fft_odd_and_even_round_trips)
+{
+	using coord_t = iane::math::vec2i;
+	prepared_tests::check_real_fft(iane::backend::cpu, coord_t{4, 3});
+	prepared_tests::check_real_fft(iane::backend::cpu, coord_t{5, 3});
+	prepared_tests::check_real_fft(iane::backend::cpu, coord_t{6, 4});
+}
+
+BOOST_AUTO_TEST_CASE(real_fft_rejects_invalid_layout_and_reuse)
+{
+	using coord_t = iane::math::vec2i;
+	iane::host_image<float, 2> odd(5, 3);
+	iane::host_image<float, 2> even(4, 3);
+	iane::host_image<float, 2> padded(6, 3);
+	iane::host_image<iane::fft_complex, 2> packed(3, 3);
+	iane::host_image<iane::fft_complex, 2> wrong(2, 3);
+	auto exec = iane::make_execution_context();
+	auto inverse = exec.prepare(iane::irfft, packed.const_view(), odd.view());
+	BOOST_CHECK_THROW(exec.run(inverse, packed.const_view(), even.view()), std::invalid_argument);
+	BOOST_CHECK_THROW(exec.prepare(iane::rfft, odd.const_view(), wrong.view()), std::invalid_argument);
+	const auto crop = padded.const_view().subview(coord_t{0, 0}, odd.dimensions());
+	BOOST_CHECK_THROW(exec.prepare(iane::rfft, crop, packed.view()), std::invalid_argument);
+}
+#endif

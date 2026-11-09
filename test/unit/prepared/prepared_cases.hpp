@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iane/algorithms/haar.hpp>
+#include <iane/algorithms/wavelet/haar.hpp>
 #include <iane/execution/run_on.hpp>
 #include <iane/image/image.hpp>
 #include <iane/resource/host/resource_host.hpp>
@@ -8,7 +8,7 @@
 #include <boost/test/unit_test.hpp>
 
 #if defined(IANE_TEST_FFT)
-#include <iane/algorithms/fft.hpp>
+#include <iane/algorithms/fft/fft.hpp>
 #endif
 
 namespace prepared_tests {

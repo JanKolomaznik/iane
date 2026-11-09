@@ -49,3 +49,10 @@ matching extents and the same backend. Scalars are copied into the expression.
 Pixel arithmetic uses the corresponding C++ operator, including its
 promotions, division rules and valid operand ranges. The expression borrows
 its input storage and follows the same lifetime and aliasing rules as zip.
+
+The same header provides `iane::log`, `log1p`, `log2`, `log10`, `exp`,
+`exp2`, `sqrt`, `sin`, `cos` and `pow` as lazy pointwise functions.
+`pow` accepts two views or broadcasts a scalar on either side. The
+corresponding standard-library scalar functions determine result types and
+domain behavior. For example, `iane::log1p(iane::pow(source, 2.0f))`
+evaluates each pixel as `log(1 + pixel²)`.
