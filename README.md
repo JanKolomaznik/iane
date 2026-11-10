@@ -1,5 +1,4 @@
-# iane
-Image Algebra for N-dimensional Evaluation
+# ![IANE — Image Algebra for N-dimensional Evaluation](docs/iane-banner.svg)
 
 ## API documentation
 

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="280" viewBox="0 0 960 280" role="img" aria-labelledby="title desc">
+  <title id="title">IANE</title>
+  <desc id="desc">Image Algebra for N-dimensional Evaluation. Three offset image grids form a volume.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#0b1023"/>
+      <stop offset="1" stop-color="#192447"/>
+    </linearGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M20 0H0V20" fill="none" stroke="#a5b4fc" stroke-opacity=".35"/>
+    </pattern>
+    <g id="slice">
+      <rect width="100" height="100" rx="3" fill="#17254a"/>
+      <rect width="100" height="100" rx="3" fill="url(#grid)" stroke="#a5b4fc"/>
+    </g>
+  </defs>
+  <rect x="1" y="1" width="958" height="278" rx="24" fill="url(#background)" stroke="#405181"/>
+  <g transform="translate(76 108) skewY(-24)">
+    <use href="#slice" transform="translate(62 -25)" opacity=".48"/>
+    <use href="#slice" transform="translate(31 -12)" opacity=".76"/>
+    <use href="#slice"/>
+    <path d="M20 60h20v20H20z M40 40h20v20H40z M60 20h20v20H60z" fill="#5eead4"/>
+    <path d="M60 40h20v20H60z" fill="#a5b4fc"/>
+  </g>
+  <g font-family="Verdana, sans-serif">
+    <text x="285" y="152" fill="#f4f7ff" font-size="104" font-weight="700" letter-spacing="9">IANE</text>
+    <path d="M289 174h48" stroke="#5eead4" stroke-width="4" stroke-linecap="round"/>
+    <text x="286" y="213" fill="#c8d4f3" font-size="23">Image Algebra for N-dimensional Evaluation</text>
+  </g>
+</svg>
